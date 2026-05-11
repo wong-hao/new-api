@@ -46,6 +46,7 @@ services:
 #      - mysql  # Uncomment if using MySQL
     networks:
       - new-api-network
+      - shared_net
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep -o '\"success\":\\s*true' || exit 1"]
       interval: 30s
@@ -59,6 +60,7 @@ services:
     command: ["redis-server", "--requirepass", "123456"]  # ⚠️ IMPORTANT: Change this password in production!
     networks:
       - new-api-network
+      - shared_net
 
   postgres:
     image: postgres:15
@@ -72,6 +74,7 @@ services:
       - pg_data:/var/lib/postgresql/data
     networks:
       - new-api-network
+      - shared_net
 #    ports:
 #      - "5432:5432"  # Uncomment if you need to access PostgreSQL from outside Docker
 
@@ -96,3 +99,6 @@ volumes:
 networks:
   new-api-network:
     driver: bridge
+
+  shared_net:
+    external: true
