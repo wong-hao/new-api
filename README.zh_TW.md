@@ -197,7 +197,7 @@ git clone https://github.com/QuantumNous/new-api.git
 cd new-api
 ```
 
-啟動前編輯 `docker-compose.yml`：同時替換資料庫、Redis 服務及對應連線字串中的範例密碼，並設定固定的隨機 `SESSION_SECRET`（可用 `openssl rand -hex 32` 產生）。透過 HTTPS 存取控制台時，設定 `SESSION_COOKIE_SECURE=true`，並在 `SESSION_COOKIE_TRUSTED_URL` 中填寫控制台對外的精確 HTTPS Origin。
+啟動前複製 `.env.example` 為 `.env`，填寫其中的 `DB_PASSWORD`、`REDIS_PASSWORD` 與固定的隨機 `SESSION_SECRET`（可用 `openssl rand -hex 32` 產生）；`docker-compose.yml` 從 `.env` 讀取這些值，而 `.env` 已被 `.gitignore` 排除，因此憑證不會進入儲存庫。未填寫或留空時啟動會直接報錯，不會回退到範例密碼。透過 HTTPS 存取控制台時，在 `.env` 中設定 `SESSION_COOKIE_SECURE=true`，並在 `SESSION_COOKIE_TRUSTED_URL` 中填寫控制台對外的精確 HTTPS Origin。
 
 ```bash
 docker compose up -d

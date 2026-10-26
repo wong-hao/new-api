@@ -198,7 +198,7 @@ git clone https://github.com/QuantumNous/new-api.git
 cd new-api
 ```
 
-起動前に `docker-compose.yml` を編集し、データベースと Redis のサービスおよび接続文字列にあるサンプルパスワードを変更します。永続的に使うランダムな `SESSION_SECRET` も設定してください（`openssl rand -hex 32` で生成可能）。HTTPS の管理画面には `SESSION_COOKIE_SECURE=true` を設定し、公開 HTTPS オリジンを `SESSION_COOKIE_TRUSTED_URL` に正確に指定します。
+起動前に `.env.example` を `.env` にコピーし、`DB_PASSWORD`、`REDIS_PASSWORD` と永続的に使うランダムな `SESSION_SECRET` を記入します（`openssl rand -hex 32` で生成可能）。`docker-compose.yml` はこれらの値を `.env` から読み取り、`.env` は `.gitignore` で除外されているため認証情報はリポジトリに含まれません。未記入または空の場合、起動時にエラーとなり、サンプルパスワードへのフォールバックは行いません。HTTPS の管理画面では `.env` に `SESSION_COOKIE_SECURE=true` を設定し、公開 HTTPS オリジンを `SESSION_COOKIE_TRUSTED_URL` に正確に指定します。
 
 ```bash
 docker compose up -d

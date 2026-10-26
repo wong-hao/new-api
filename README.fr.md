@@ -198,7 +198,7 @@ git clone https://github.com/QuantumNous/new-api.git
 cd new-api
 ```
 
-Avant de démarrer, modifiez `docker-compose.yml` : remplacez les mots de passe d'exemple de la base et de Redis dans les services et les chaînes de connexion, puis définissez un `SESSION_SECRET` aléatoire et persistant (générable avec `openssl rand -hex 32`). Pour une console HTTPS, définissez `SESSION_COOKIE_SECURE=true` et renseignez son origine HTTPS publique exacte dans `SESSION_COOKIE_TRUSTED_URL`.
+Avant de démarrer, copiez `.env.example` vers `.env` et renseignez `DB_PASSWORD`, `REDIS_PASSWORD` et un `SESSION_SECRET` aléatoire et persistant (générable avec `openssl rand -hex 32`). `docker-compose.yml` lit ces valeurs depuis `.env`, que `.gitignore` exclut : aucun identifiant n'est versionné, et une valeur absente ou vide fait échouer la commande au lieu de retomber sur un mot de passe d'exemple. Pour une console HTTPS, définissez `SESSION_COOKIE_SECURE=true` et l'origine HTTPS publique exacte dans `SESSION_COOKIE_TRUSTED_URL`, dans `.env`.
 
 ```bash
 docker compose up -d
