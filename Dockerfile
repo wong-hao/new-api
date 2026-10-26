@@ -9,6 +9,11 @@ RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bu
 
 FROM golang:1.26.10-alpine@sha256:9ce231b28998b32e116927c61aa5c406183061d4f3f2d61b292c88e7f6bdf7ca AS builder2
 ENV GO111MODULE=on CGO_ENABLED=0 GOWORK=off
+# The build does not inherit the host Go environment, so the image's default
+# proxy.golang.org is used. It is unreachable from mainland China and makes
+# `go mod download` time out; goproxy.cn is a full mirror and `direct` keeps
+# VCS fallback for modules the mirror does not serve.
+ENV GOPROXY=https://goproxy.cn,direct
 
 ARG TARGETOS
 ARG TARGETARCH
