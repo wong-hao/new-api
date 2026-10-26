@@ -118,7 +118,7 @@ func GetStatus(c *gin.Context) {
 		// that cannot complete a login.
 		"cas_oauth":                 casSettings.Enabled && casSettings.IsConfigured(),
 		"cas_display_name":          casSettings.GetEffectiveDisplayName(),
-		"cas_login_url":             casSettings.LoginURL(),
+		"cas_login_url":             casSettings.SignInURL(),
 		"passkey_login":             passkeySetting.Enabled,
 		"passkey_display_name":      passkeySetting.RPDisplayName,
 		"passkey_rp_id":             passkeySetting.EffectiveRPID(),

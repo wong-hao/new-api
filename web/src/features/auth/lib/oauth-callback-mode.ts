@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 const OAUTH_POPUP_FLOW_KEY_PREFIX = 'oauth_popup_flow:'
+const OAUTH_CALLBACK_STATE_KEY_PREFIX = 'oauth_callback_state:'
 
 export function rememberOAuthLoginRedirect(
   state: string,
@@ -76,6 +77,59 @@ export function getOAuthSessionStorage(
     return owner?.sessionStorage ?? null
   } catch {
     return null
+  }
+}
+
+/**
+ * Whether a provider's callback arrives without the flow state, leaving the
+ * browsing context that started the flow to supply it.
+ *
+ * OAuth2 providers return the state as a `state` query parameter. CAS is not an
+ * OAuth2 protocol: the browser comes back to the application's registered
+ * service URL with only a service ticket appended, and that URL has to stay a
+ * constant so a CAS server whose registration list holds exact strings can
+ * match it. The state therefore travels in the tab instead.
+ */
+export function providerStateComesFromStorage(provider: string): boolean {
+  return provider === 'cas'
+}
+
+/**
+ * Keep the flow state in the browsing context that is about to visit the
+ * provider, so its callback can present the state of the flow that started it.
+ * Pass the storage of the window or popup that will return to the callback.
+ */
+export function rememberOAuthCallbackState(
+  storage: OAuthModeStorage | null | undefined,
+  provider: string,
+  state: string
+): void {
+  if (!storage || !provider || !state) return
+  try {
+    storage.setItem(`${OAUTH_CALLBACK_STATE_KEY_PREFIX}${provider}`, state)
+  } catch {
+    // Without it the callback is rejected as a mismatched flow, which is the
+    // safe direction; the user can start over.
+  }
+}
+
+export function readOAuthCallbackState(provider: string): string | null {
+  try {
+    return window.sessionStorage.getItem(
+      `${OAUTH_CALLBACK_STATE_KEY_PREFIX}${provider}`
+    )
+  } catch {
+    return null
+  }
+}
+
+export function clearOAuthCallbackState(provider: string): void {
+  try {
+    window.sessionStorage.removeItem(
+      `${OAUTH_CALLBACK_STATE_KEY_PREFIX}${provider}`
+    )
+  } catch {
+    // Nothing to clean up when storage is unavailable.
   }
 }
 

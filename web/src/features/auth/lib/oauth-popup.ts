@@ -23,7 +23,12 @@ import {
   OAUTH_POPUP_RESULT_MESSAGE,
 } from '../constants'
 import { watchOAuthPopupClosed } from './oauth-bind-window'
-import { getOAuthSessionStorage, markOAuthPopup } from './oauth-callback-mode'
+import {
+  getOAuthSessionStorage,
+  markOAuthPopup,
+  providerStateComesFromStorage,
+  rememberOAuthCallbackState,
+} from './oauth-callback-mode'
 
 export interface OAuthPopupCallback {
   provider: string
@@ -169,15 +174,14 @@ export function openOAuthPopup(
       .then((authorization) => {
         if (finished || popup.closed) return
         state = authorization.state
-        if (
-          !markOAuthPopup(
-            getOAuthSessionStorage(popup),
-            options.provider,
-            state,
-            options.intent
-          )
-        ) {
+        const storage = getOAuthSessionStorage(popup)
+        if (!markOAuthPopup(storage, options.provider, state, options.intent)) {
           throw new AuthOperationError('OAuth popup storage is unavailable.')
+        }
+        // A provider whose callback does not return the state needs it kept in
+        // the popup, which inherits a copy of this window's storage.
+        if (providerStateComesFromStorage(options.provider)) {
+          rememberOAuthCallbackState(storage, options.provider, state)
         }
         popup.location.replace(authorization.url)
       })

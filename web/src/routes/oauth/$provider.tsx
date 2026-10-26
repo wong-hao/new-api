@@ -40,8 +40,11 @@ import {
   startOAuthBindResponseDeadline,
 } from '@/features/auth/lib/oauth-bind-window'
 import {
-  getOAuthSessionStorage,
+  clearOAuthCallbackState,
   consumeOAuthLoginRedirect,
+  getOAuthSessionStorage,
+  providerStateComesFromStorage,
+  readOAuthCallbackState,
   resolveOAuthCallbackMode,
 } from '@/features/auth/lib/oauth-callback-mode'
 import { resolveOAuthCallbackCode } from '@/features/auth/lib/oauth-callback-params'
@@ -87,7 +90,19 @@ function OAuthCallback() {
     flow_token?: string
     error_code?: string
   }
-  const callbackState = search.state ?? ''
+  // The flow state normally comes back from the provider in the callback URL. A
+  // provider that does not return it (CAS) leaves it to the tab that started the
+  // flow, so it is read from sessionStorage — resolved once per mount, so
+  // StrictMode's repeated render cannot settle on a different value.
+  const resolvedState = useRef<string | null>(null)
+  if (resolvedState.current === null) {
+    resolvedState.current =
+      search.state ??
+      (providerStateComesFromStorage(provider)
+        ? (readOAuthCallbackState(provider) ?? '')
+        : '')
+  }
+  const callbackState = resolvedState.current
   // A CAS server returns a service ticket where an OAuth2 provider returns an
   // authorization code; the backend accepts either as the value it exchanges.
   const callbackCode = resolveOAuthCallbackCode({
@@ -236,6 +251,8 @@ function OAuthCallback() {
         if (!active) return
         if (response.data?.success) {
           completedLogin.current = loginKey
+          // The flow is spent server-side, so its stored state goes with it.
+          clearOAuthCallbackState(provider)
           if (
             await handleLoginResult(
               response.data.data,
@@ -259,6 +276,9 @@ function OAuthCallback() {
           AuthOperationError.from(error, i18next.t('OAuth failed'))
         )
       }
+      // A rejected exchange leaves this flow unusable, so the stored state goes
+      // with it and the user starts a new one.
+      clearOAuthCallbackState(provider)
       safeNavigate('/sign-in', '/sign-in')
     })()
     return () => {

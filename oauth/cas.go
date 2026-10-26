@@ -103,9 +103,10 @@ func (p *CASProvider) ExchangeToken(ctx context.Context, ticket string, c *gin.C
 		return nil, fmt.Errorf("cas: the CAS server URL is not configured")
 	}
 	// CAS rejects a validation whose service does not match the one used at
-	// login, so the service identifier is rebuilt from server configuration and
-	// the flow state — never taken from the request.
-	service := settings.ServiceURL(c.Query("state"))
+	// login, so the service identifier is rebuilt from server configuration —
+	// never taken from the request. It is a constant, which is what a CAS
+	// deployment whose registration list only holds exact strings can match.
+	service := settings.ServiceURL()
 	if service == "" {
 		return nil, fmt.Errorf("cas: the server address is not configured, CAS cannot verify the service URL")
 	}

@@ -80,7 +80,6 @@ export {
   buildGitHubOAuthUrl,
   buildDiscordOAuthUrl,
   buildOIDCOAuthUrl,
-  buildCASOAuthUrl,
   buildLinuxDOOAuthUrl,
   getAvailableOAuthProviders,
   hasOAuthProviders,

@@ -16,7 +16,7 @@ import (
 
 const (
 	casTestOrigin  = "https://api.example.edu.cn"
-	casTestService = casTestOrigin + "/oauth/cas?state=flow-state"
+	casTestService = casTestOrigin + "/oauth/cas"
 )
 
 // withCASEnabled points the CAS settings at a test server for one test and
@@ -55,13 +55,15 @@ func newCASServer(t *testing.T, body string, status int) (*httptest.Server, *url
 }
 
 // casCallbackContext is the request the generic OAuth controller hands to the
-// provider: the service ticket arrives as the authorization code and the flow
-// state as a query parameter.
-func casCallbackContext(t *testing.T, state string) *gin.Context {
+// provider: the service ticket arrives as the authorization code argument, and
+// the flow state sits beside it in the query for the controller to match. The
+// provider must not read either from the request when it builds the service
+// identifier it validates with.
+func casCallbackContext(t *testing.T) *gin.Context {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/oauth/cas?state="+state, nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/oauth/cas?code=ST-1-abc&state=flow-state", nil)
 	return c
 }
 
@@ -84,17 +86,33 @@ func TestCASProviderSendsTicketServiceAndJSONFormat(t *testing.T) {
 	withCASEnabled(t, server.URL+"/cas")
 
 	provider := &CASProvider{}
-	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t, "flow-state"))
+	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t))
 	require.NoError(t, err)
 	require.NotNil(t, token)
 
 	assert.Equal(t, "ST-1-abc", received.Get("ticket"))
-	// The service identifier must be the exact string the browser was sent to
-	// CAS with, rebuilt from server configuration and the flow state rather than
-	// from anything the request supplied.
+	// The service identifier must be the exact constant string the browser was
+	// sent to CAS with, and the one the CAS registration list holds. It is
+	// rebuilt from server configuration alone, so it carries no per-attempt
+	// parameter and nothing the request supplied can influence it.
 	assert.Equal(t, casTestService, received.Get("service"))
 	assert.Equal(t, "JSON", received.Get("format"))
 	assert.Equal(t, "TEST001", token.AccessToken)
+}
+
+func TestCASProviderIgnoresRequestSuppliedService(t *testing.T) {
+	server, received := newCASServer(t, casSuccessBody(`"name":"Zhang San"`), http.StatusOK)
+	withCASEnabled(t, server.URL+"/cas")
+
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodGet,
+		"/api/oauth/cas?code=ST-1-abc&state=injected&service="+
+			url.QueryEscape("https://attacker.example.com/oauth/cas"), nil)
+
+	_, err := (&CASProvider{}).ExchangeToken(context.Background(), "ST-1-abc", c)
+	require.NoError(t, err)
+	assert.Equal(t, casTestService, received.Get("service"))
 }
 
 func TestCASProviderMapsAttributes(t *testing.T) {
@@ -104,7 +122,7 @@ func TestCASProviderMapsAttributes(t *testing.T) {
 	withCASEnabled(t, server.URL+"/cas")
 
 	provider := &CASProvider{}
-	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t, "flow-state"))
+	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t))
 	require.NoError(t, err)
 
 	user, err := provider.GetUserInfo(context.Background(), token)
@@ -121,7 +139,7 @@ func TestCASProviderFallsBackThroughAttributeNames(t *testing.T) {
 	withCASEnabled(t, server.URL+"/cas")
 
 	provider := &CASProvider{}
-	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t, "flow-state"))
+	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t))
 	require.NoError(t, err)
 
 	user, err := provider.GetUserInfo(context.Background(), token)
@@ -138,7 +156,7 @@ func TestCASProviderHonoursConfiguredAttributeNames(t *testing.T) {
 	settings.EmailAttribute = "schoolMail"
 
 	provider := &CASProvider{}
-	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t, "flow-state"))
+	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t))
 	require.NoError(t, err)
 
 	user, err := provider.GetUserInfo(context.Background(), token)
@@ -154,7 +172,7 @@ func TestCASProviderLogsInWithoutAttributesOrEmail(t *testing.T) {
 	withCASEnabled(t, server.URL+"/cas")
 
 	provider := &CASProvider{}
-	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t, "flow-state"))
+	token, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t))
 	require.NoError(t, err)
 
 	user, err := provider.GetUserInfo(context.Background(), token)
@@ -170,7 +188,7 @@ func TestCASProviderRejectsAuthenticationFailureWithoutLeakingCASDetail(t *testi
 	withCASEnabled(t, server.URL+"/cas")
 
 	provider := &CASProvider{}
-	_, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t, "flow-state"))
+	_, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t))
 
 	requireOAuthMessageKey(t, err, msgCASValidateFailed)
 	// The CAS failure code and description name the ticket and the server's
@@ -184,7 +202,7 @@ func TestCASProviderRejectsEmptyTicketBeforeCallingCAS(t *testing.T) {
 	withCASEnabled(t, server.URL+"/cas")
 
 	provider := &CASProvider{}
-	_, err := provider.ExchangeToken(context.Background(), "  ", casCallbackContext(t, "flow-state"))
+	_, err := provider.ExchangeToken(context.Background(), "  ", casCallbackContext(t))
 
 	requireOAuthMessageKey(t, err, msgInvalidCode)
 	assert.Empty(t, received.Get("ticket"))
@@ -208,7 +226,7 @@ func TestCASProviderRejectsUnusableResponses(t *testing.T) {
 			withCASEnabled(t, server.URL+"/cas")
 
 			provider := &CASProvider{}
-			_, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t, "flow-state"))
+			_, err := provider.ExchangeToken(context.Background(), "ST-1-abc", casCallbackContext(t))
 			require.Error(t, err)
 		})
 	}
@@ -257,7 +275,10 @@ func TestCASSettingsDeriveEndpointsFromServerURL(t *testing.T) {
 	assert.Equal(t, "https://cas.example.edu.cn/cas/login", settings.LoginURL())
 	assert.Equal(t, "https://cas.example.edu.cn/cas/logout", settings.LogoutURL())
 	assert.Equal(t, "https://cas.example.edu.cn/cas/p3/serviceValidate", settings.ServiceValidateURL())
-	assert.Equal(t, casTestService, settings.ServiceURL("flow-state"))
+	assert.Equal(t, casTestService, settings.ServiceURL())
+	// The sign-in URL hands out the same service the validation will use, encoded
+	// as CAS expects to receive it.
+	assert.Equal(t, "https://cas.example.edu.cn/cas/login?service="+url.QueryEscape(casTestService), settings.SignInURL())
 	assert.Equal(t, "https://cas.example.edu.cn/cas/logout?service="+url.QueryEscape(casTestOrigin+"/sign-in"), settings.SingleLogoutURL())
 }
 

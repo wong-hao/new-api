@@ -30,10 +30,13 @@ import {
   buildGitHubOAuthUrl,
   buildDiscordOAuthUrl,
   buildOIDCOAuthUrl,
-  buildCASOAuthUrl,
   buildLinuxDOOAuthUrl,
 } from '../lib/oauth'
-import { rememberOAuthLoginRedirect } from '../lib/oauth-callback-mode'
+import {
+  getOAuthSessionStorage,
+  rememberOAuthCallbackState,
+  rememberOAuthLoginRedirect,
+} from '../lib/oauth-callback-mode'
 import type { SystemStatus, CustomOAuthProviderInfo } from '../types'
 
 /**
@@ -159,9 +162,13 @@ export function useOAuthLogin(
       await resetSession()
       const state = await createOAuthFlow('cas', 'login')
       rememberOAuthLoginRedirect(state, redirectTo)
+      // CAS returns the browser to the registered service URL, which carries no
+      // state, so this tab has to hold it for the callback to present.
+      rememberOAuthCallbackState(getOAuthSessionStorage(window), 'cas', state)
 
-      const url = buildCASOAuthUrl(status.cas_login_url, state)
-      window.open(url, '_self')
+      // The backend builds the sign-in URL, service included, so the service
+      // identifier registered with CAS is the one it also validates against.
+      window.open(status.cas_login_url, '_self')
     } catch (error) {
       handleServerError(
         AuthOperationError.from(error, t('Failed to start CAS login'))

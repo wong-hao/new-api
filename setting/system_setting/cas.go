@@ -112,15 +112,34 @@ func (s *CASSettings) ServiceValidateURL() string {
 }
 
 // ServiceURL is the callback this application registers with CAS as its
-// service, carrying the authorization flow state so the callback can be matched
-// to the request that started it. CAS echoes the service identifier back on
-// validation, so the string built when sending the browser to CAS and the one
-// sent to serviceValidate MUST be byte-identical; both callers use this method.
-func (s *CASSettings) ServiceURL(state string) string {
+// service. It is a constant, with no per-attempt parameter: a CAS server
+// matches the service against its registration list, and a deployment whose
+// registration only accepts an exact string rejects anything appended to it.
+// The authorization flow state therefore travels in the browser rather than in
+// this URL (see the frontend's stored callback state).
+// CAS echoes the service identifier back on validation, so the string built
+// when sending the browser to CAS and the one sent to serviceValidate MUST be
+// byte-identical; both callers use this method.
+func (s *CASSettings) ServiceURL() string {
 	if !s.IsConfigured() {
 		return ""
 	}
-	return serviceOrigin() + "/oauth/cas?state=" + state
+	return serviceOrigin() + "/oauth/cas"
+}
+
+// SignInURL is the complete CAS sign-in URL, service included. Handing it out as
+// one value keeps the service identifier the browser is sent with identical to
+// the one this application validates against, instead of leaving every caller
+// to rebuild it from the public origin.
+func (s *CASSettings) SignInURL() string {
+	loginURL := s.LoginURL()
+	service := s.ServiceURL()
+	if loginURL == "" || service == "" {
+		return ""
+	}
+	values := url.Values{}
+	values.Set("service", service)
+	return loginURL + "?" + values.Encode()
 }
 
 // SingleLogoutURL is the endpoint that ends the CAS single sign-on session and

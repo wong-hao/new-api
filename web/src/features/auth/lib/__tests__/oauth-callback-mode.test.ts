@@ -16,11 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test } from 'vitest'
 
 import {
+  clearOAuthCallbackState,
   getOAuthSessionStorage,
   markOAuthPopup,
+  providerStateComesFromStorage,
+  readOAuthCallbackState,
+  rememberOAuthCallbackState,
   resolveOAuthCallbackMode,
   type OAuthModeStorage,
 } from '../oauth-callback-mode'
@@ -189,5 +193,55 @@ describe('OAuth bind popup storage', () => {
         'bind'
       )
     ).toBe(false)
+  })
+})
+
+describe('OAuth callback state storage', () => {
+  afterEach(() => {
+    window.sessionStorage.clear()
+  })
+
+  test('CAS supplies its callback state from storage and other providers do not', () => {
+    expect(providerStateComesFromStorage('cas')).toBe(true)
+    expect(providerStateComesFromStorage('oidc')).toBe(false)
+  })
+
+  test('state stored before the round trip is readable at the callback', () => {
+    rememberOAuthCallbackState(window.sessionStorage, 'cas', bindState)
+
+    expect(readOAuthCallbackState('cas')).toBe(bindState)
+  })
+
+  test('stored state is scoped to the provider that started the flow', () => {
+    rememberOAuthCallbackState(window.sessionStorage, 'cas', bindState)
+
+    expect(readOAuthCallbackState('oidc')).toBe(null)
+  })
+
+  test('a state that was never stored reads as null', () => {
+    expect(readOAuthCallbackState('cas')).toBe(null)
+  })
+
+  test('clearing drops the state so a spent flow cannot be replayed', () => {
+    rememberOAuthCallbackState(window.sessionStorage, 'cas', bindState)
+    clearOAuthCallbackState('cas')
+
+    expect(readOAuthCallbackState('cas')).toBe(null)
+  })
+
+  test('missing or unwritable storage is contained instead of throwing', () => {
+    const storage: OAuthModeStorage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('blocked')
+      },
+    }
+
+    expect(() =>
+      rememberOAuthCallbackState(null, 'cas', bindState)
+    ).not.toThrow()
+    expect(() =>
+      rememberOAuthCallbackState(storage, 'cas', bindState)
+    ).not.toThrow()
   })
 })
