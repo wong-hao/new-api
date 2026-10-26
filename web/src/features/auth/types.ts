@@ -102,6 +102,9 @@ export interface SystemStatus {
     oidc_authorization_endpoint?: string
     oidc_client_id?: string
     oidc_display_name?: string
+    cas_oauth?: boolean
+    cas_display_name?: string
+    cas_login_url?: string
     linuxdo_oauth?: boolean
     linuxdo_client_id?: string
     telegram_oauth?: boolean
@@ -149,6 +152,9 @@ export interface SystemStatus {
   oidc_authorization_endpoint?: string
   oidc_client_id?: string
   oidc_display_name?: string
+  cas_oauth?: boolean
+  cas_display_name?: string
+  cas_login_url?: string
   linuxdo_oauth?: boolean
   linuxdo_client_id?: string
   telegram_oauth?: boolean
@@ -196,7 +202,7 @@ export interface SystemStatus {
 
 export interface OAuthProvider {
   name: string
-  type: 'github' | 'discord' | 'oidc' | 'linuxdo' | 'telegram' | 'wechat'
+  type: 'github' | 'discord' | 'oidc' | 'cas' | 'linuxdo' | 'telegram' | 'wechat'
   enabled: boolean
   clientId?: string
   authEndpoint?: string

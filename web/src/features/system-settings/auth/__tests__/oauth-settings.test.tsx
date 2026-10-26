@@ -57,6 +57,11 @@ const defaults: ComponentProps<typeof OAuthSection>['defaultValues'] = {
   TelegramOAuthEnabled: false,
   'telegram.client_id': '',
   'telegram.client_secret': '',
+  'cas.enabled': false,
+  'cas.display_name': '',
+  'cas.server_url': '',
+  'cas.name_attribute': '',
+  'cas.email_attribute': '',
   LinuxDOOAuthEnabled: false,
   LinuxDOClientId: '',
   LinuxDOClientSecret: '',
@@ -335,5 +340,33 @@ describe('OAuth settings saves', () => {
         value: 'https://provider.example.com/discovery',
       })
     )
+  })
+
+  it('persists the CAS server URL before enabling CAS login', async () => {
+    // The server refuses to enable CAS while its URL is still unset, and options
+    // are written one key at a time, so the URL has to be saved first.
+    const user = userEvent.setup()
+    await renderSettings()
+    await user.click(screen.getByRole('tab', { name: 'CAS' }))
+    await user.type(
+      screen.getByRole('textbox', { name: 'CAS server URL' }),
+      'https://cas.example.edu.cn/cas'
+    )
+    await user.click(screen.getByRole('switch', { name: 'Enable CAS login' }))
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith('/api/option/', {
+        key: 'cas.enabled',
+        value: true,
+      })
+    )
+    const savedKeys = vi
+      .mocked(api.put)
+      .mock.calls.map(([, body]) => (body as { key: string }).key)
+    expect(savedKeys.indexOf('cas.server_url')).toBeLessThan(
+      savedKeys.indexOf('cas.enabled')
+    )
+    expect(savedKeys).not.toContain('cas.name_attribute')
   })
 })

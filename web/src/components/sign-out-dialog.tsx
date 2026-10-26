@@ -49,6 +49,17 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
 
       clearAuthenticatedClientState(queryClient)
       toast.success(t('Signed out'))
+
+      // A CAS session must also be ended at the CAS server, or the user would
+      // remain signed in there and be signed straight back in on the next visit.
+      // The server decides this and only asks for it for sessions CAS created.
+      // The destination is an absolute external URL, so it cannot go through the
+      // router, and its scheme is checked before it is followed.
+      const ssoLogoutUrl = response.data?.sso_logout_url
+      if (ssoLogoutUrl && /^https?:\/\//i.test(ssoLogoutUrl)) {
+        window.location.href = ssoLogoutUrl
+        return
+      }
       void navigate({ to: '/sign-in', replace: true })
     } catch (error: unknown) {
       handleServerError(error, t('Failed to sign out session'))

@@ -89,6 +89,7 @@ type User struct {
 	GitHubId             string                     `json:"github_id" gorm:"column:github_id;index"`
 	DiscordId            string                     `json:"discord_id" gorm:"column:discord_id;index"`
 	OidcId               string                     `json:"oidc_id" gorm:"column:oidc_id;index"`
+	CasId                string                     `json:"cas_id" gorm:"column:cas_id;index"`
 	WeChatId             string                     `json:"wechat_id" gorm:"column:wechat_id;index"`
 	TelegramId           string                     `json:"telegram_id" gorm:"column:telegram_id;index"`
 	VerificationCode     string                     `json:"verification_code" gorm:"-:all"`                         // this field is only for Email verification, don't save it to database!
@@ -203,6 +204,7 @@ var userBindColumns = map[string]bool{
 	"github_id":   true,
 	"discord_id":  true,
 	"oidc_id":     true,
+	"cas_id":      true,
 	"linux_do_id": true,
 	"wechat_id":   true,
 }
@@ -530,7 +532,7 @@ func GetSelfUserById(id int) (*User, error) {
 	}
 	err := DB.Model(&User{}).Select([]string{
 		"id", "username", "display_name", "role", "status", "email",
-		"github_id", "discord_id", "oidc_id", "wechat_id", "telegram_id",
+		"github_id", "discord_id", "oidc_id", "cas_id", "wechat_id", "telegram_id",
 		"group", "quota", "used_quota", "request_count", "aff_code", "aff_count",
 		"aff_quota", "aff_history", "inviter_id", "linux_do_id", "setting",
 		"stripe_customer", "auth_version",
@@ -914,6 +916,7 @@ func (user *User) ClearBinding(bindingType string) error {
 		"github":   "github_id",
 		"discord":  "discord_id",
 		"oidc":     "oidc_id",
+		"cas":      "cas_id",
 		"wechat":   "wechat_id",
 		"telegram": "telegram_id",
 		"linuxdo":  "linux_do_id",
@@ -1122,6 +1125,14 @@ func (user *User) FillUserByOidcId() error {
 	return nil
 }
 
+func (user *User) FillUserByCasId() error {
+	if user.CasId == "" {
+		return common.NewMessage("CAS ID is empty!")
+	}
+	DB.Where(User{CasId: user.CasId}).First(user)
+	return nil
+}
+
 func (user *User) FillUserByWeChatId() error {
 	if user.WeChatId == "" {
 		return common.NewMessage("WeChat ID is empty!")
@@ -1179,6 +1190,10 @@ func IsDiscordIdAlreadyTaken(discordId string) bool {
 
 func IsOidcIdAlreadyTaken(oidcId string) bool {
 	return DB.Where("oidc_id = ?", oidcId).Find(&User{}).RowsAffected == 1
+}
+
+func IsCasIdAlreadyTaken(casId string) bool {
+	return DB.Where("cas_id = ?", casId).Find(&User{}).RowsAffected == 1
 }
 
 func IsTelegramIdAlreadyTaken(telegramId string) bool {

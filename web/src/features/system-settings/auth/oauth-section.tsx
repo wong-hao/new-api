@@ -83,6 +83,13 @@ const oauthSchema = z.object({
   }),
   TelegramOAuthEnabled: z.boolean(),
   telegram: z.object({ client_id: z.string(), client_secret: z.string() }),
+  cas: z.object({
+    enabled: z.boolean(),
+    display_name: z.string(),
+    server_url: z.string(),
+    name_attribute: z.string(),
+    email_attribute: z.string(),
+  }),
   LinuxDOOAuthEnabled: z.boolean(),
   LinuxDOClientId: z.string(),
   LinuxDOClientSecret: z.string(),
@@ -113,6 +120,11 @@ type FlatOAuthDefaults = {
   TelegramOAuthEnabled: boolean
   'telegram.client_id': string
   'telegram.client_secret': string
+  'cas.server_url': string
+  'cas.display_name': string
+  'cas.name_attribute': string
+  'cas.email_attribute': string
+  'cas.enabled': boolean
   LinuxDOOAuthEnabled: boolean
   LinuxDOClientId: string
   LinuxDOClientSecret: string
@@ -199,6 +211,13 @@ const buildFormDefaults = (defaults: FlatOAuthDefaults): OAuthFormValues => ({
     client_id: defaults['telegram.client_id'] ?? '',
     client_secret: defaults['telegram.client_secret'] ?? '',
   },
+  cas: {
+    enabled: defaults['cas.enabled'],
+    display_name: defaults['cas.display_name'] ?? '',
+    server_url: defaults['cas.server_url'] ?? '',
+    name_attribute: defaults['cas.name_attribute'] ?? '',
+    email_attribute: defaults['cas.email_attribute'] ?? '',
+  },
   LinuxDOOAuthEnabled: defaults.LinuxDOOAuthEnabled,
   LinuxDOClientId: defaults.LinuxDOClientId ?? '',
   LinuxDOClientSecret: defaults.LinuxDOClientSecret ?? '',
@@ -227,6 +246,14 @@ const normalizeFormValues = (values: OAuthFormValues): FlatOAuthDefaults => ({
   'telegram.client_id': values.telegram.client_id,
   'telegram.client_secret': values.telegram.client_secret,
   TelegramOAuthEnabled: values.TelegramOAuthEnabled,
+  // Saved before cas.enabled: the server refuses to enable CAS while the URL it
+  // needs is still unset, and options are persisted one key at a time in this
+  // order.
+  'cas.server_url': values.cas.server_url,
+  'cas.display_name': values.cas.display_name,
+  'cas.name_attribute': values.cas.name_attribute,
+  'cas.email_attribute': values.cas.email_attribute,
+  'cas.enabled': values.cas.enabled,
   LinuxDOOAuthEnabled: values.LinuxDOOAuthEnabled,
   LinuxDOClientId: values.LinuxDOClientId,
   LinuxDOClientSecret: values.LinuxDOClientSecret,
@@ -265,6 +292,11 @@ export function OAuthSection(props: OAuthSectionProps) {
   const telegramCallbackUrl = buildOAuthCallbackUrl(
     props.serverAddress,
     'telegram',
+    t('Site URL')
+  )
+  const casCallbackUrl = buildOAuthCallbackUrl(
+    props.serverAddress,
+    'cas',
     t('Site URL')
   )
   const linuxDOCallbackUrl = buildOAuthCallbackUrl(
@@ -394,10 +426,11 @@ export function OAuthSection(props: OAuthSectionProps) {
             <FormDirtyIndicator isDirty={form.formState.isDirty} />
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className='grid w-full grid-cols-6'>
+              <TabsList className='grid w-full grid-cols-7'>
                 <TabsTrigger value='github'>{t('GitHub')}</TabsTrigger>
                 <TabsTrigger value='discord'>{t('Discord')}</TabsTrigger>
                 <TabsTrigger value='oidc'>{t('OIDC')}</TabsTrigger>
+                <TabsTrigger value='cas'>{t('CAS')}</TabsTrigger>
                 <TabsTrigger value='telegram'>{t('Telegram')}</TabsTrigger>
                 <TabsTrigger value='linuxdo'>{t('LinuxDO')}</TabsTrigger>
                 <TabsTrigger value='wechat'>{t('WeChat')}</TabsTrigger>
@@ -815,6 +848,161 @@ export function OAuthSection(props: OAuthSectionProps) {
                       </FormControl>
                       <FormMessage />
                     </FormItem>
+                  )}
+                />
+              </TabsContent>
+
+              <TabsContent value='cas' className={oauthTabContentClassName}>
+                <OAuthSetupGuide
+                  title={t('Setup guide')}
+                  description={t(
+                    'Register this URL as the system SSO entry with your CAS administrators before enabling login.'
+                  )}
+                  rows={[
+                    {
+                      label: t('CAS service URL'),
+                      value: casCallbackUrl,
+                      copyLabel: t('Copy callback URL'),
+                    },
+                  ]}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.server_url'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('CAS server URL')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='https://cas.example.edu.cn/cas'
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'The CAS context root. Login, logout and ticket validation are derived from it.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.display_name'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Display name')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t('CAS')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'Shown on the sign-in button. Leave empty to use CAS.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.name_attribute'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Display name attribute')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='name'
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'CAS attribute holding the display name. Leave empty to use name.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.email_attribute'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Email attribute')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='email'
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'CAS attribute holding the email address. Leave empty to use email.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.enabled'
+                  render={({ field }) => (
+                    <SettingsSwitchItem>
+                      <SettingsSwitchContent>
+                        <FormLabel>{t('Enable CAS login')}</FormLabel>
+                        <FormDescription>
+                          {t(
+                            'Allow users to sign in with the campus CAS account'
+                          )}
+                        </FormDescription>
+                      </SettingsSwitchContent>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </SettingsSwitchItem>
                   )}
                 />
               </TabsContent>

@@ -44,6 +44,7 @@ import {
   consumeOAuthLoginRedirect,
   resolveOAuthCallbackMode,
 } from '@/features/auth/lib/oauth-callback-mode'
+import { resolveOAuthCallbackCode } from '@/features/auth/lib/oauth-callback-params'
 import type { LoginResponse } from '@/features/auth/types'
 import { api } from '@/lib/api'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -77,6 +78,7 @@ function OAuthCallback() {
   }
   const search = useSearch({ from: '/oauth/$provider' }) as {
     code?: string
+    ticket?: string
     state?: string
     error?: string
     error_description?: string
@@ -86,6 +88,12 @@ function OAuthCallback() {
     error_code?: string
   }
   const callbackState = search.state ?? ''
+  // A CAS server returns a service ticket where an OAuth2 provider returns an
+  // authorization code; the backend accepts either as the value it exchanges.
+  const callbackCode = resolveOAuthCallbackCode({
+    code: search.code,
+    ticket: search.ticket,
+  })
   const isTelegramBindCallback =
     provider === 'telegram' &&
     (search.telegram_bind === 'success' || search.telegram_bind === 'error')
@@ -102,7 +110,7 @@ function OAuthCallback() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const code = search.code ?? ''
+    const code = callbackCode
     const state = callbackState
     const telegramCallback =
       provider === 'telegram'
@@ -262,7 +270,7 @@ function OAuthCallback() {
     navigate,
     handleLoginResult,
     provider,
-    search.code,
+    callbackCode,
     search.error,
     search.error_code,
     search.error_description,

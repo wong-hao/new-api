@@ -46,6 +46,7 @@ func GetStatus(c *gin.Context) {
 	defer common.OptionMapRWMutex.RUnlock()
 
 	legalSetting := system_setting.GetLegalSettings()
+	casSettings := system_setting.GetCASSettings()
 
 	data := gin.H{
 		"version":                     common.Version,
@@ -112,21 +113,27 @@ func GetStatus(c *gin.Context) {
 		"oidc_client_id":              system_setting.GetOIDCSettings().ClientId,
 		"oidc_authorization_endpoint": system_setting.GetOIDCSettings().AuthorizationEndpoint,
 		"oidc_display_name":           system_setting.GetOIDCSettings().GetEffectiveDisplayName(),
-		"passkey_login":               passkeySetting.Enabled,
-		"passkey_display_name":        passkeySetting.RPDisplayName,
-		"passkey_rp_id":               passkeySetting.EffectiveRPID(),
-		"passkey_rp_ids":              passkeySetting.RelyingPartyIDs(),
-		"passkey_allow_insecure":      passkeySetting.AllowInsecureOrigin,
-		"passkey_user_verification":   passkeySetting.UserVerification,
-		"passkey_attachment":          passkeySetting.AttachmentPreference,
-		"setup":                       constant.Setup,
-		"user_agreement_enabled":      legalSetting.UserAgreement != "",
-		"privacy_policy_enabled":      legalSetting.PrivacyPolicy != "",
-		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
-		"log_export_enabled":          operation_setting.GetLogSetting().UserExportEnabled,
-		"log_max_range_days":          operation_setting.GetLogSetting().MaxRangeDays,
-		"quota_remind_enabled":        common.QuotaRemindEnabled,
-		"quota_remind_threshold":      common.QuotaRemindThreshold,
+		// cas_oauth is true only when CAS is enabled AND configured, matching
+		// the provider's own IsEnabled, so the console never offers a button
+		// that cannot complete a login.
+		"cas_oauth":                 casSettings.Enabled && casSettings.IsConfigured(),
+		"cas_display_name":          casSettings.GetEffectiveDisplayName(),
+		"cas_login_url":             casSettings.LoginURL(),
+		"passkey_login":             passkeySetting.Enabled,
+		"passkey_display_name":      passkeySetting.RPDisplayName,
+		"passkey_rp_id":             passkeySetting.EffectiveRPID(),
+		"passkey_rp_ids":            passkeySetting.RelyingPartyIDs(),
+		"passkey_allow_insecure":    passkeySetting.AllowInsecureOrigin,
+		"passkey_user_verification": passkeySetting.UserVerification,
+		"passkey_attachment":        passkeySetting.AttachmentPreference,
+		"setup":                     constant.Setup,
+		"user_agreement_enabled":    legalSetting.UserAgreement != "",
+		"privacy_policy_enabled":    legalSetting.PrivacyPolicy != "",
+		"checkin_enabled":           operation_setting.GetCheckinSetting().Enabled,
+		"log_export_enabled":        operation_setting.GetLogSetting().UserExportEnabled,
+		"log_max_range_days":        operation_setting.GetLogSetting().MaxRangeDays,
+		"quota_remind_enabled":      common.QuotaRemindEnabled,
+		"quota_remind_threshold":    common.QuotaRemindThreshold,
 	}
 
 	// 根据启用状态注入可选内容

@@ -81,6 +81,8 @@ export interface UserProfile {
   discord_id?: string
   /** OIDC ID (OAuth) */
   oidc_id?: string
+  /** CAS ID (campus single sign-on) */
+  cas_id?: string
   /** Telegram ID (OAuth) */
   telegram_id?: string
   /** LinuxDO ID (OAuth) */

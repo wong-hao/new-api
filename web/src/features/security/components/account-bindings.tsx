@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Mail, Shield, Send, Link2, Unlink } from 'lucide-react'
+import { Mail, Shield, Send, GraduationCap, Link2, Unlink } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -286,6 +286,17 @@ export function AccountBindings({ profile, onUpdate }: AccountBindingsProps) {
       isBound: Boolean((profile as unknown as Record<string, unknown>).oidc_id),
       isEnabled: status?.oidc_enabled || false,
       onBind: () => void startOAuthBinding('oidc'),
+    },
+    {
+      id: 'cas',
+      label: t('CAS'),
+      icon: GraduationCap,
+      value: (profile as unknown as Record<string, unknown>).cas_id as
+        | string
+        | undefined,
+      isBound: Boolean((profile as unknown as Record<string, unknown>).cas_id),
+      isEnabled: status?.cas_oauth || false,
+      onBind: () => void startOAuthBinding('cas'),
     },
     {
       id: 'telegram',

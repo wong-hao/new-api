@@ -22,6 +22,7 @@ export {
   buildGitHubOAuthUrl,
   buildDiscordOAuthUrl,
   buildOIDCOAuthUrl,
+  buildCASOAuthUrl,
   buildLinuxDOOAuthUrl,
 } from '@/lib/oauth'
 
@@ -67,6 +68,15 @@ export function getAvailableOAuthProviders(
     })
   }
 
+  if (status.cas_oauth) {
+    providers.push({
+      name: status.cas_display_name?.trim() || 'CAS',
+      type: 'cas',
+      enabled: true,
+      authEndpoint: status.cas_login_url,
+    })
+  }
+
   if (status.linuxdo_oauth) {
     providers.push({
       name: 'LinuxDO',
@@ -96,6 +106,7 @@ export function hasOAuthProviders(status: SystemStatus | null): boolean {
     status.github_oauth ||
     status.discord_oauth ||
     status.oidc_enabled ||
+    status.cas_oauth ||
     status.linuxdo_oauth ||
     status.telegram_oauth ||
     status.wechat_login

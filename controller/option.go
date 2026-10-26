@@ -233,6 +233,14 @@ func UpdateOption(c *gin.Context) {
 			common.ApiErrorT(c, "Cannot enable {{provider}}. Enter the {{provider}} Client ID and Client Secret first.", map[string]any{"provider": "OIDC"})
 			return
 		}
+	case "cas.enabled":
+		// A CAS server URL that is missing or not an absolute http(s) URL is
+		// treated as unconfigured, so enabling it would leave a login button
+		// that cannot complete.
+		if option.Value == "true" && !system_setting.GetCASSettings().IsConfigured() {
+			common.ApiErrorT(c, "Cannot enable {{provider}}. Enter the CAS server URL first.", map[string]any{"provider": "CAS"})
+			return
+		}
 	case "LinuxDOOAuthEnabled":
 		if option.Value == "true" && common.LinuxDOClientId == "" {
 			common.ApiErrorT(c, "Cannot enable {{provider}}. Enter the {{provider}} Client ID and Client Secret first.", map[string]any{"provider": "LinuxDO OAuth"})

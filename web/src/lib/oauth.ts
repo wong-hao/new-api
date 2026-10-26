@@ -83,6 +83,23 @@ export function buildLinuxDOOAuthUrl(clientId: string, state: string): string {
   return `https://connect.linux.do/oauth2/authorize?response_type=code&client_id=${clientId}&state=${state}`
 }
 
+/**
+ * Build CAS login URL
+ *
+ * CAS has no authorization endpoint of its own parameters: the application
+ * passes the URL the browser should come back to as `service`, and CAS appends
+ * the service ticket to it. The backend rebuilds this exact string when it
+ * validates the ticket, so the two must stay in step.
+ */
+export function buildCASOAuthUrl(loginUrl: string, state: string): string {
+  const url = new URL(loginUrl)
+  url.searchParams.set(
+    'service',
+    `${window.location.origin}/oauth/cas?state=${state}`
+  )
+  return url.toString()
+}
+
 export function buildOAuthAuthorizationUrl(
   provider: string,
   state: string,
@@ -111,6 +128,11 @@ export function buildOAuthAuthorizationUrl(
     case 'linuxdo':
       if (status.linuxdo_client_id) {
         return buildLinuxDOOAuthUrl(status.linuxdo_client_id, state)
+      }
+      break
+    case 'cas':
+      if (status.cas_login_url) {
+        return buildCASOAuthUrl(status.cas_login_url, state)
       }
       break
     default: {

@@ -455,6 +455,8 @@ func verificationOAuthProviders(user *model.User) ([]VerificationOAuthProvider, 
 				userID = user.DiscordId
 			case "oidc_id":
 				userID = user.OidcId
+			case "cas_id":
+				userID = user.CasId
 			case "linux_do_id":
 				userID = user.LinuxDOId
 			case "telegram_id":

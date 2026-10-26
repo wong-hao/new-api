@@ -65,6 +65,7 @@ export function OAuthProviders({
     handleGitHubLogin,
     handleDiscordLogin,
     handleOIDCLogin,
+    handleCASLogin,
     handleLinuxDOLogin,
     handleTelegramLogin,
     handleCustomOAuthLogin,
@@ -109,6 +110,15 @@ export function OAuthProviders({
         name: oidcDisplayName,
       }),
       onClick: handleOIDCLogin,
+    })
+  }
+
+  if (status?.cas_oauth) {
+    const casDisplayName = status.cas_display_name?.trim() || 'CAS'
+    providerButtons.push({
+      key: 'cas',
+      label: t('Continue with {{name}}', { name: casDisplayName }),
+      onClick: handleCASLogin,
     })
   }
 

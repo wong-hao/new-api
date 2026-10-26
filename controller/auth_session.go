@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -76,22 +77,32 @@ func AuthLogout(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": true,
 				"message": "",
-				"data":    gin.H{"revoked_sid": identity.SessionID, "cookie_cleared": cookieCleared},
+				"data": gin.H{
+					"revoked_sid":    identity.SessionID,
+					"cookie_cleared": cookieCleared,
+					"sso_logout_url": oauth.SingleLogoutURLForSession(identity.SessionID),
+				},
 			})
 			return
 		}
 	}
 	if cookieErr != nil || rawRefreshToken == "" {
 		service.ClearRefreshCookie(c)
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{}})
 		return
+	}
+	// Resolved before revocation so the session's login method is still the
+	// record the sign-out decision reads.
+	ssoLogoutURL := ""
+	if hasCookieSID {
+		ssoLogoutURL = oauth.SingleLogoutURLForSession(cookieSID)
 	}
 	if err := service.RevokeByRefreshToken(rawRefreshToken, expectedSID, "logout"); err != nil {
 		writeAuthSessionError(c, err)
 		return
 	}
 	service.ClearRefreshCookie(c)
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"sso_logout_url": ssoLogoutURL}})
 }
 
 func GetLoginSessions(c *gin.Context) {

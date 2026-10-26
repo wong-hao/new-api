@@ -1,0 +1,28 @@
+# Build new-api from this checkout instead of pulling calciumion/new-api:latest.
+#
+# docker-compose.yml points new-api at the upstream published image, which does
+# NOT contain the CAS provider added in this fork. Compose merges this file
+# automatically, so a plain `docker compose up -d --build` builds the image from
+# the local source and tags it new-api-cas:local.
+#
+# The Dockerfile builds both the web frontend (oven/bun) and the Go binary, so
+# no local toolchain and no web/dist are needed here.
+#
+# Quick check of the merged result without starting anything:
+#   docker compose config
+services:
+  new-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # A local tag makes it obvious the running container is this build and not
+    # the upstream image.
+    image: new-api-cas:local
+
+# docker-compose.yml binds 127.0.0.1:3000, which is only reachable from the
+# server itself — that is the intended setup behind an Nginx/Caddy reverse proxy
+# on the same host. For a first smoke test without a proxy, change that one line
+# in docker-compose.yml to:
+#     - "3000:3000"
+# Do not add a second `ports:` entry here: Compose appends port lists rather
+# than replacing them, so both bindings would be applied and clash on 3000.

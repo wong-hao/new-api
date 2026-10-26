@@ -16,7 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Loader2, Send, Shield, UserRound, type LucideIcon } from 'lucide-react'
+import {
+  GraduationCap,
+  Loader2,
+  Send,
+  Shield,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -42,6 +49,7 @@ const providerDictionary: Record<string, ProviderMeta> = {
     ),
   },
   oidc: { label: 'OIDC', Icon: Shield },
+  cas: { label: 'CAS', Icon: GraduationCap },
   linuxdo: {
     label: 'LinuxDO',
     Icon: (props: { className?: string }) => (

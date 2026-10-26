@@ -506,6 +506,7 @@ func buildSelfUserData(user *model.User) map[string]any {
 		"github_id":         user.GitHubId,
 		"discord_id":        user.DiscordId,
 		"oidc_id":           user.OidcId,
+		"cas_id":            user.CasId,
 		"wechat_id":         user.WeChatId,
 		"telegram_id":       user.TelegramId,
 		"group":             user.Group,

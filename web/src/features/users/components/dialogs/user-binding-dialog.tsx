@@ -20,6 +20,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Mail,
   Globe,
+  GraduationCap,
   MessageCircle,
   Send,
   Link2,
@@ -82,6 +83,7 @@ interface StatusInfo {
   github_oauth?: boolean
   discord_oauth?: boolean
   oidc_enabled?: boolean
+  cas_oauth?: boolean
   wechat_login?: boolean
   telegram_oauth?: boolean
   linuxdo_oauth?: boolean
@@ -133,6 +135,13 @@ const BUILTIN_BINDINGS: ReadonlyArray<{
     label: 'OIDC',
     icon: <Globe className='h-4 w-4' />,
     statusKey: 'oidc_enabled',
+  },
+  {
+    key: 'cas',
+    field: 'cas_id',
+    label: 'CAS',
+    icon: <GraduationCap className='h-4 w-4' />,
+    statusKey: 'cas_oauth',
   },
   {
     key: 'telegram',

@@ -94,16 +94,16 @@ export async function login2fa(payload: TwoFAPayload) {
   return res.data
 }
 
-interface LogoutRuntime {
+interface LogoutRuntime<TResult> {
   getExpectedSID: () => string | undefined
-  request: (expectedSID?: string) => Promise<ApiResponse>
+  request: (expectedSID?: string) => Promise<ApiResponse<TResult>>
   refresh: () => Promise<RefreshOutcome>
 }
 
-export async function executeLogout(
-  runtime: LogoutRuntime,
+export async function executeLogout<TResult = unknown>(
+  runtime: LogoutRuntime<TResult>,
   allowMismatchRecovery = true
-): Promise<ApiResponse> {
+): Promise<ApiResponse<TResult>> {
   try {
     return await runtime.request(runtime.getExpectedSID())
   } catch (error: unknown) {
@@ -128,16 +128,29 @@ export async function executeLogout(
   }
 }
 
+/**
+ * What the server reports about the session it just ended. `sso_logout_url` is
+ * present only when the session was established through CAS and the single
+ * sign-on session has to be ended as well.
+ */
+export interface LogoutResult {
+  sso_logout_url?: string
+}
+
 // User logout
-export async function logout(): Promise<ApiResponse> {
-  return executeLogout({
+export async function logout(): Promise<ApiResponse<LogoutResult>> {
+  return executeLogout<LogoutResult>({
     getExpectedSID: () => useAuthStore.getState().auth.session?.sid,
     request: async (sid) => {
-      const res = await api.post('/api/user/auth/logout', undefined, {
-        headers: sid ? { 'X-Auth-Session': sid } : undefined,
-        skipAuthRefresh: true,
-        skipErrorHandler: true,
-      })
+      const res = await api.post<ApiResponse<LogoutResult>>(
+        '/api/user/auth/logout',
+        undefined,
+        {
+          headers: sid ? { 'X-Auth-Session': sid } : undefined,
+          skipAuthRefresh: true,
+          skipErrorHandler: true,
+        }
+      )
       return res.data
     },
     refresh: refreshAuthentication,

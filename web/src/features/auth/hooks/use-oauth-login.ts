@@ -30,6 +30,7 @@ import {
   buildGitHubOAuthUrl,
   buildDiscordOAuthUrl,
   buildOIDCOAuthUrl,
+  buildCASOAuthUrl,
   buildLinuxDOOAuthUrl,
 } from '../lib/oauth'
 import { rememberOAuthLoginRedirect } from '../lib/oauth-callback-mode'
@@ -150,6 +151,26 @@ export function useOAuthLogin(
     }
   }
 
+  const handleCASLogin = async () => {
+    if (!status?.cas_login_url) return
+
+    setIsLoading(true)
+    try {
+      await resetSession()
+      const state = await createOAuthFlow('cas', 'login')
+      rememberOAuthLoginRedirect(state, redirectTo)
+
+      const url = buildCASOAuthUrl(status.cas_login_url, state)
+      window.open(url, '_self')
+    } catch (error) {
+      handleServerError(
+        AuthOperationError.from(error, t('Failed to start CAS login'))
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleLinuxDOLogin = async () => {
     if (!status?.linuxdo_client_id) return
 
@@ -234,6 +255,7 @@ export function useOAuthLogin(
     handleGitHubLogin,
     handleDiscordLogin,
     handleOIDCLogin,
+    handleCASLogin,
     handleLinuxDOLogin,
     handleTelegramLogin,
     handleCustomOAuthLogin,

@@ -164,6 +164,9 @@ func validateCustomOAuthProvider(provider *CustomOAuthProvider) error {
 	if slug == "telegram" {
 		return errors.New("the telegram slug is reserved for built-in Telegram OAuth; rename this custom provider")
 	}
+	if slug == "cas" {
+		return errors.New("the cas slug is reserved for built-in CAS single sign-on; rename this custom provider")
+	}
 
 	if provider.ClientId == "" {
 		return errors.New("client ID is required")

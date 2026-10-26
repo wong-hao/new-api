@@ -11,6 +11,11 @@ type OAuthToken struct {
 	Scope        string `json:"scope,omitempty"`
 	IDToken      string `json:"id_token,omitempty"`
 	ClientID     string `json:"-"` // Expected OIDC audience from the server-owned flow.
+	// CASValidation carries the result of the CAS ticket validation, which is
+	// the whole of what a CAS round trip yields. CAS has no separate userinfo
+	// call, so ExchangeToken (which validates the ticket) and GetUserInfo (which
+	// maps the attributes) are two halves of one validation.
+	CASValidation *CASValidation `json:"-"`
 }
 
 // OAuthUser represents the user info from OAuth provider
@@ -29,11 +34,12 @@ type OAuthUser struct {
 
 // Texts of OAuthError that the web console translates.
 const (
-	msgInvalidCode   = "Invalid authorization code"
-	msgTokenFailed   = "Failed to get token from {{provider}}, please check settings"
-	msgUserInfoEmpty = "{{provider}} returned empty user info, please check settings"
-	msgConnectFailed = "Unable to connect to {{provider}} server, please try again later"
-	msgGetUserFailed = "Failed to get user information"
+	msgInvalidCode       = "Invalid authorization code"
+	msgTokenFailed       = "Failed to get token from {{provider}}, please check settings"
+	msgUserInfoEmpty     = "{{provider}} returned empty user info, please check settings"
+	msgConnectFailed     = "Unable to connect to {{provider}} server, please try again later"
+	msgGetUserFailed     = "Failed to get user information"
+	msgCASValidateFailed = "CAS ticket validation failed, please sign in again"
 )
 
 // OAuthError represents a translatable OAuth error
