@@ -131,7 +131,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 | 邮箱属性 | `cas.email_attribute` | 留空即 `email`（另有 `mail` 兜底） |
 | 启用 CAS 登录 | `cas.enabled` | 服务端在服务器地址未配置时会**拒绝启用**（`controller/option.go`），报 `Cannot enable CAS. Enter the CAS server URL first.` |
 
-**该校实测放行的属性里确实有 `name` 和 `email`** ❓（2026-10-28 待复核：线上 CAS 登录后账号邮箱一直是空，怀疑 `email` 并未实际放行，正在用日志确认，见 §8），所以"姓名属性 / 邮箱属性"两项**留空即可**，不要凭参考实现的字段名去猜。
+**该校放行的属性里确实有 `name` 和 `email` 这两个键** ❓（2026-10-28：`name` 能取到值、`email` 取不到；日志显示 `email` 这个键确实在返回里，所以要么值是空的、要么形状不认识。重建后看 `[OAuth-CAS] Email attribute not resolved` 那行的形状就知道，见 §8），所以"姓名属性 / 邮箱属性"两项**留空即可**，不要凭参考实现的字段名去猜。
 
 ---
 
@@ -139,7 +139,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 
 - 主体取自**协议层**的 `<cas:user>`（`serviceResponse.authenticationSuccess.user`），**不从 attributes 取**：属性放行策略由学校随时可改，从属性取等于把"能否登录"押在对方配置上。
 - 本 provider 只取两个属性：`name` → `OAuthUser.DisplayName`，`email` → `OAuthUser.Email`。**其余全部丢弃**（属性 map 只在本次请求的内存里经由 `OAuthUser.Extra` 传递，不落库、不写日志）。
-- 该校断言含敏感 PII（实测放行约 35 个属性，其中 `idCard`、`mobile`、`tel`、`dn` 属个人信息）。姓名或邮箱任一取不到时，只记录**属性键名**和「哪个取到了」的布尔值，**绝不记录值**；登录成功时也会在补写后记一行「还有哪个字段是空的 + 本次断言给没给」（`[OAuth] Profile backfill left a field empty for user …`），同样不含值。
+- 该校断言含敏感 PII（实测放行约 35 个属性，其中 `idCard`、`mobile`、`tel`、`dn` 属个人信息）。姓名或邮箱任取不到时，只记录**候选属性名 + 到没到 + 值的形状**（如 `string(0)`、`object{...}`，够判断"是空的还是我们读不懂"），以及 CAS 实际返回的**属性键名**，**绝不记录值**；登录成功时也会在补写后记一行「还有哪个字段是空的 + 本次断言给没给」（`[OAuth] Profile backfill left a field empty for user …`），同样不含值。
 - 属性值形状不定：单值是字符串、多值是数组（`casAttributeString` 两种都接受）。参考实现里还有个"数组包着几十个字段对象"的 `groups` 属性——不需要它，忽略。
 
 ---
@@ -165,7 +165,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 | 回跳后 403 `State parameter is empty or mismatched` | 浏览器里没有这次流程的 state | 常见于跨标签页/换浏览器完成登录、或 sessionStorage 被清；重新点登录即可 |
 | 后端日志 `CAS ticket validation failed` | 票被 CAS 拒（过期/已消费/service 不一致） | 日志里有 CAS 返回的 `code`/`description`；重点看 service 是否两次一致 |
 | 登录成功但账号不对 | CAS 账号与预期不符 | 看 `users.cas_id`；主体是 `<cas:user>`，不是 attributes 里的 `staffNo`/`localAccount` |
-| CAS 登录成功，但账号邮箱一直是空 | `email` 没进断言，或它给的是空值。补写只补空字段、且邮箱被占用时静默跳过，所以**不会报错**，只能看日志 | 日志里找 `[OAuth-CAS] Attribute not resolved (… email=false …)`，它后面列出的是 CAS 实际返回的**属性键名**：列表里有 `email` = 属性到了但值为空；没有 = 学校没给这个 service 放行该属性，需要联系学校加到放行列表。另一行 `[OAuth] Profile backfill left a field empty for user …` 会说明补写后还剩哪个字段是空的、本次断言给没给 |
+| CAS 登录成功，但账号邮箱一直是空 | `email` 没进断言，或它给的形状我们读不出来（空串 / 对象 / 对象数组）。补写只补空字段、且邮箱被占用时静默跳过，所以**不会报错**，只能看日志 | 日志里找 `[OAuth-CAS] Email attribute not resolved; candidates: …`：`candidates` 逐个写明候选属性到没到、到了是什么形状——`string(0)` = 属性到了但是空串（学校目录里这个账号没填邮箱），`object{…}` / `array[…]` = 到了但结构不认识（要扩 `casAttributeString`），全 `absent` = 学校没给这个 service 放行该属性（要联系学校加放行）。后面那串是 CAS 实际返回的全部属性键名。另一行 `[OAuth] Profile backfill left a field empty for user …` 说明补写后还剩哪个字段空、本次断言给没给 |
 
 排查时先分层：CAS 的错误页 = **第一跳就被拒**（登记问题，与本仓库代码无关）；能回到本站并带 ticket = 登记已通，问题在本仓库或票据校验这一段。
 

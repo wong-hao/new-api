@@ -182,6 +182,30 @@ func TestCASProviderLogsInWithoutAttributesOrEmail(t *testing.T) {
 	assert.Empty(t, user.DisplayName)
 }
 
+// A campus CAS can release an attribute this provider still cannot read — an
+// object, or an array of objects. The diagnostic has to tell that apart from a
+// value the server left empty, and it runs on every such sign-in, so it describes
+// the shape and never the value.
+func TestCASAttributeReportDescribesShapesWithoutValues(t *testing.T) {
+	attributes := map[string]any{
+		"email":  "a@b.cn",
+		"mail":   "",
+		"dept":   map[string]any{"deptName": "网络与信息化处", "deptCode": "1001"},
+		"groups": []any{map[string]any{"groupName": "网络与信息化处", "groupId": "7"}},
+	}
+
+	assert.Equal(t, "email=string(6), mail=string(0)", casAttributeReport(attributes, "email", "mail"))
+	assert.NotContains(t, casAttributeReport(attributes, "email", "mail"), "a@b.cn")
+	assert.Equal(t, "email=string(6), mail=string(0), uid=absent", casAttributeReport(attributes, "email", "mail", "uid"))
+	assert.Equal(t, "email=string(6), mail=string(0)", casAttributeReport(attributes, "email", "email", "mail"))
+	assert.Equal(t, "mobile=absent, uid=absent", casAttributeReport(attributes, "mobile", "uid"))
+	assert.Equal(t, "string(0)", casAttributeShape(attributes["mail"]))
+	assert.Equal(t, "object{deptCode, deptName}", casAttributeShape(attributes["dept"]))
+	assert.Equal(t, "array[object{groupId, groupName}]", casAttributeShape(attributes["groups"]))
+	assert.NotContains(t, casAttributeShape(attributes["dept"]), "网络与信息化处")
+	assert.Equal(t, "float64", casAttributeShape(float64(1)))
+}
+
 func TestCASProviderRejectsAuthenticationFailureWithoutLeakingCASDetail(t *testing.T) {
 	body := `{"serviceResponse":{"authenticationFailure":{"code":"INVALID_TICKET","description":"Ticket ST-1-abc not recognized"}}}`
 	server, _ := newCASServer(t, body, http.StatusOK)
