@@ -198,11 +198,12 @@ func (p *CASProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAut
 
 	displayName := firstCASAttribute(validation.Attributes, settings.EffectiveNameAttribute(), "name", "nick", "cn", "displayName")
 	email := firstCASAttribute(validation.Attributes, settings.EffectiveEmailAttribute(), "email", "mail")
-	if displayName == "" && email == "" {
-		// Attribute names are chosen by the CAS deployment, so a mismatch is the
-		// most likely configuration error. Log which attributes did arrive —
-		// their names only, never their values.
-		logger.LogError(ctx, common.LogText("[OAuth-CAS] No display name or email attribute found; CAS returned these attribute names: %s", strings.Join(casAttributeNames(validation.Attributes), ", ")))
+	if displayName == "" || email == "" {
+		// Attribute names, and whether the deployment releases each one, are
+		// decided by the CAS server, so a field that never arrives is the most
+		// likely configuration error and the one nothing else records. Log which
+		// attributes did arrive — their names only, never their values.
+		logger.LogError(ctx, common.LogText("[OAuth-CAS] Attribute not resolved (display_name=%t, email=%t); CAS returned these attribute names: %s", displayName != "", email != "", strings.Join(casAttributeNames(validation.Attributes), ", ")))
 	}
 
 	logger.LogDebug(ctx, "[OAuth-CAS] GetUserInfo success: principal=%s", validation.Principal)

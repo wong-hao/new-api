@@ -422,8 +422,16 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		// user has already authenticated at the provider, so enriching the local
 		// record must not turn a completed sign-in into an error.
 		if backfiller, ok := provider.(oauth.ProfileBackfillProvider); ok && backfiller.BackfillsMissingProfile() {
+			assertedName, assertedEmail := oauthUser.DisplayName != "", oauthUser.Email != ""
 			if err := model.BackfillUserProfile(user, oauthUser.DisplayName, oauthUser.Email); err != nil {
 				common.SysError(common.LogText("[OAuth] Failed to fill in the profile fields of user %d: %s", user.Id, err.Error()))
+			}
+			// A field still empty here is one this sign-in could not fill: the
+			// provider asserted nothing for it, or another account already owns the
+			// address. Neither leaves a trace on the account, so record what this
+			// sign-in offered — presence only, never the value.
+			if user.DisplayName == "" || user.Email == "" {
+				common.SysLog(common.LogText("[OAuth] Profile backfill left a field empty for user %d (asserted display_name=%t, email=%t)", user.Id, assertedName, assertedEmail))
 			}
 		}
 		return user, nil, nil
