@@ -348,6 +348,7 @@
   "[OAuth-OIDC] GetUserInfo failed: status=%d": "[OAuth-OIDC] GetUserInfo 失败: status=%d",
   "[OAuth-OIDC] GetUserInfo response status: %d": "[OAuth-OIDC] GetUserInfo 响应状态码: %d",
   "[OAuth-OIDC] GetUserInfo success: sub=%s, username=%s, name=%s, email=%s": "[OAuth-OIDC] GetUserInfo 成功: sub=%s, username=%s, name=%s, email=%s",
+  "[OAuth] Failed to fill in the profile fields of user %d: %s": "[OAuth] 补全用户 %d 的资料字段失败: %s",
   "[OAuth] Failed to load verified emails for user %d: %s": "[OAuth] 加载用户 %d 的已验证邮箱失败: %s",
   "access token last-use update failed (token_id=%d): %v": "更新访问令牌最后使用时间失败 (token_id=%d): %v",
   "access token route is not declared: %s": "这条路由没有声明访问令牌的访问规则，已拒绝: %s",

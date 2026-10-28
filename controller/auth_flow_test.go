@@ -1123,3 +1123,92 @@ func TestOAuthBindIgnoresLegacyGitHubUsernames(t *testing.T) {
 		})
 	}
 }
+
+// casProfileOAuthProvider follows the CAS provider contract for the fields a
+// sign-in can carry: the CAS principal identifies the account, and the provider
+// opts in to filling in a missing display name and email.
+type casProfileOAuthProvider struct {
+	authFlowTestOAuthProvider
+	principal   string
+	displayName string
+	email       string
+	backfills   bool
+}
+
+func (*casProfileOAuthProvider) GetName() string { return "CAS" }
+func (provider *casProfileOAuthProvider) GetUserInfo(context.Context, *oauth.OAuthToken) (*oauth.OAuthUser, error) {
+	return &oauth.OAuthUser{ProviderUserID: provider.principal, Username: provider.principal, DisplayName: provider.displayName, Email: provider.email}, nil
+}
+func (provider *casProfileOAuthProvider) IsUserIDTaken(principal string) bool {
+	return model.IsCasIdAlreadyTaken(principal)
+}
+func (provider *casProfileOAuthProvider) FillUserByProviderID(user *model.User, principal string) error {
+	user.CasId = principal
+	return user.FillUserByCasId()
+}
+func (*casProfileOAuthProvider) SetProviderUserID(user *model.User, principal string) {
+	user.CasId = principal
+}
+func (*casProfileOAuthProvider) GetProviderPrefix() string              { return "cas_" }
+func (*casProfileOAuthProvider) ProviderUserIDColumn() string           { return "cas_id" }
+func (provider *casProfileOAuthProvider) BackfillsMissingProfile() bool { return provider.backfills }
+
+// TestOAuthLoginFillsInMissingProviderProfileFields covers a sign-in that lands
+// on an account created before the provider's name and email attributes were
+// configured: the fields the account is missing are filled in, the ones it
+// already holds are kept, an email another account owns is skipped rather than
+// failing a sign-in that has already succeeded at the provider, and a provider
+// that does not opt in writes nothing at all.
+func TestOAuthLoginFillsInMissingProviderProfileFields(t *testing.T) {
+	const principal = "20210001"
+	tests := []struct {
+		name              string
+		displayName       string
+		email             string
+		backfills         bool
+		emailHeldByOther  bool
+		expectDisplayName string
+		expectEmail       string
+	}{
+		{name: "missing fields are filled in", backfills: true, expectDisplayName: "张三", expectEmail: "zhangsan@example.edu.cn"},
+		{name: "fields the account holds are kept", displayName: "自定昵称", email: "mine@example.com", backfills: true, expectDisplayName: "自定昵称", expectEmail: "mine@example.com"},
+		{name: "an email another account owns is skipped", backfills: true, emailHeldByOther: true, expectDisplayName: "张三"},
+		{name: "a provider that does not opt in writes nothing"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			user, _ := setupSecurityEnrollmentTest(t)
+			require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", user.Id).Updates(map[string]any{
+				"cas_id": principal, "display_name": test.displayName, "email": test.email,
+			}).Error)
+			if test.emailHeldByOther {
+				other := &model.User{Username: "cas-classmate", Email: "zhangsan@example.edu.cn", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, Group: "default", AffCode: "cas-classmate", AuthVersion: 1}
+				require.NoError(t, model.DB.Create(other).Error)
+			}
+			const slug = "cas-profile-login-test"
+			oauth.Register(slug, &casProfileOAuthProvider{principal: principal, displayName: "张三", email: " ZhangSan@Example.edu.cn ", backfills: test.backfills})
+			t.Cleanup(func() { oauth.Unregister(slug) })
+			token, _, err := model.CreateAuthFlow(model.AuthFlowCreate{
+				Purpose: model.AuthFlowPurposeOAuth, Provider: slug, Intent: model.AuthFlowIntentLogin,
+				Payload: `{}`, ExpiresAt: time.Now().Add(time.Minute),
+			})
+			require.NoError(t, err)
+
+			router := gin.New()
+			router.GET("/api/oauth/:provider", HandleOAuth)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/oauth/"+slug+"?state="+token+"&code=service-ticket", nil))
+
+			var result struct {
+				Success bool `json:"success"`
+			}
+			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
+			require.True(t, result.Success, response.Body.String())
+
+			var reloaded model.User
+			require.NoError(t, model.DB.First(&reloaded, user.Id).Error)
+			assert.Equal(t, test.expectDisplayName, reloaded.DisplayName)
+			assert.Equal(t, test.expectEmail, reloaded.Email)
+		})
+	}
+}

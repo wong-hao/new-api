@@ -47,3 +47,17 @@ type Provider interface {
 type VerifiedEmailProvider interface {
 	GetVerifiedEmails(ctx context.Context, token *OAuthToken) ([]string, error)
 }
+
+// ProfileBackfillProvider is implemented by providers whose returned display
+// name and email may fill in a field an existing account does not have yet.
+//
+// Opting in is a statement about the provider's directory, not about the login
+// flow: the values are only written where the account holds none, so a provider
+// whose name and address are optional and self-chosen (GitHub, for example) must
+// not implement it, while an institutional single sign-on server that asserts
+// its own record for the account that just authenticated may.
+type ProfileBackfillProvider interface {
+	// BackfillsMissingProfile reports whether a login through this provider may
+	// fill in a missing display name and email on an existing account.
+	BackfillsMissingProfile() bool
+}

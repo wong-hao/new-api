@@ -34,12 +34,12 @@ CAS 只实现 provider 那一半，其余全部复用上游的通用 OAuth 链�
 
 | 文件 | 职责 |
 | --- | --- |
-| `oauth/cas.go` | `CASProvider`：`ExchangeToken` 调 `/p3/serviceValidate`（`format=JSON`）拿 principal + 属性；`GetUserInfo` 映射成 `OAuthUser`；`oauth/cas_test.go` 是它的回归测试 |
+| `oauth/cas.go` | `CASProvider`：`ExchangeToken` 调 `/p3/serviceValidate`（`format=JSON`）拿 principal + 属性；`GetUserInfo` 映射成 `OAuthUser`；`BackfillsMissingProfile()` 声明 CAS 可以补写已有账号缺失的姓名/邮箱；`oauth/cas_test.go` 是它的回归测试 |
 | `setting/system_setting/cas.go` | 配置结构与 URL 派生：`ServiceURL()`（**常量**）、`SignInURL()`、`ServiceValidateURL()`、`SingleLogoutURL()` |
-| `controller/oauth.go` | 通用入口 `GET /api/oauth/:provider`（CAS 与其它 provider 共用；state 校验、建号/绑定都在这里） |
+| `controller/oauth.go` | 通用入口 `GET /api/oauth/:provider`（CAS 与其它 provider 共用；state 校验、建号/绑定/补写都在这里） |
 | `controller/misc.go` | `/api/status` 暴露 `cas_oauth` / `cas_display_name` / `cas_login_url` |
 | `model/auth_flow.go` | 流程令牌（state）的签发、HMAC 存储、一次性核销 |
-| `model/user.go` | `users.cas_id` 列与 `FillUserByCasId` |
+| `model/user.go` | `users.cas_id` 列与 `FillUserByCasId`；`BackfillUserProfile`（只补空字段，邮箱走与其它邮箱写入相同的加锁路径） |
 
 **前端**
 
@@ -147,7 +147,8 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 ## 7. 账号行为
 
 - **首次登录**：以 `<cas:user>` 作为 `users.cas_id`。命中已有 `cas_id` 直接登录；没有则在「允许新用户注册」开启时建号——用户名优先用统一认证账号（职工号）本身，被占用或超长则退回 `cas_<自增ID>`；显示名优先取断言的 `name`，取不到则退回统一认证账号；邮箱取断言的 `email`（做归一化）。
-- **不会按邮箱自动合并到已有本地账号**：若断言里的邮箱已被**另一个**账号占用，建号会直接失败并提示邮箱已被占用（`OAuthEmailAlreadyTakenError`），不会合并、也不会静默改邮箱。已有本地账号的用户想用 CAS 登录同一个账号，需要先登录后到「账号绑定」里绑定（绑定走弹窗流程，与其它 provider 一致）；否则会另开一个账号。
+- **再次登录会补写缺失字段**：命中已有 `cas_id` 时，如果该账号的 `display_name` 或 `email` 仍是空，就用本次断言的值补上（邮箱归一化后写，走与其它邮箱写入相同的加锁路径）。**账号已有的值一律不动**——用户在本站改过的昵称/邮箱不会被下次登录覆盖。补上的邮箱同时成为该账号可用于密码登录的标识（`ValidateAndFill` 按 `username = ? OR email = ?` 查人），前提是该账号本身有密码。这条补写只对声明了 `ProfileBackfillProvider` 的 provider 生效，目前只有 CAS；补写失败只记日志，不影响这次已经成功的登录（`controller/oauth.go` 的命中分支 + `model.BackfillUserProfile`）。它解决的是「建号时属性名还没配好、账号一直是空邮箱/空姓名」这类历史账号。
+- **不会按邮箱自动合并到已有本地账号**：若断言里的邮箱已被**另一个**账号占用，建号会直接失败并提示邮箱已被占用（`OAuthEmailAlreadyTakenError`），不会合并、也不会静默改邮箱；补写路径遇到同样情况则**静默跳过**（登录照常成功，账号邮箱保持为空）。已有本地账号的用户想用 CAS 登录同一个账号，需要先登录后到「账号绑定」里绑定（绑定走弹窗流程，与其它 provider 一致）；否则会另开一个账号。
 - **「允许新用户注册」关闭时**，未绑定过的 CAS 用户会被直接拒绝（`controller/oauth.go` 的通用建号分支）；已绑定过的用户不受影响。校内场景可以把这条当白名单用，但要清楚它的行为。
 - **注销**：仅当会话是通过 CAS 建立的（登录方式记为 `oauth:cas`）时，后端在登出响应里返回 `sso_logout_url`，前端跳 `{CAS}/logout?service={网站地址}/sign-in`——即同时结束 CAS 的单一登录会话。普通密码登录的会话不会触发这一步（否则会误杀无关的 SSO 会话）。
 
@@ -208,4 +209,4 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 
 - ⏳ **线上真实登录验证**：登记生效 + 新镜像上线后走一次，确认回跳 URL 形状与服务端会话都正常。
 - ❓ **单一注销的语义**：学校那格若其实是 back-channel（CAS 主动 POST 通知应用），当前实现接不住。与校内另一套集成不同，本仓库有服务端会话表，理论上可以真正实现会话失效，但需要先确认学校是否强制。
-- ❓ **姓名/邮箱的落点**：目前只映射到 `users.display_name` / `users.email`；是否要作为校内身份的唯一来源、要不要与其它校内系统对齐，尚未决定。
+- ❓ **姓名/邮箱的落点**：目前只映射到 `users.display_name` / `users.email`，且**只在字段为空时补写**，账号已有的值不覆盖（所以用户在本站改过的昵称/邮箱不会被下次登录冲掉）；要不要更进一步——比如每次登录都以校内记录为准（改名的场景）、或与其他校内系统对齐——尚未决定。

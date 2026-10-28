@@ -674,6 +674,45 @@ func ensureEmailAvailableWithTx(tx *gorm.DB, email string, excludeUserID int) er
 	return nil
 }
 
+// BackfillUserProfile fills in a display name and an email address the account
+// does not have yet. A field the account already holds is left alone: a value the
+// account holder set here is not replaced by what a provider reports on a later
+// sign-in.
+//
+// An email that another account already owns is skipped rather than reported,
+// because the caller is a sign-in that has already succeeded at the provider and
+// enriching the local record must not fail it. The write takes the same lock as
+// every other email write, so two accounts cannot end up sharing one address.
+func BackfillUserProfile(user *User, displayName string, email string) error {
+	displayName = strings.TrimSpace(displayName)
+	if user.DisplayName == "" && displayName != "" {
+		if err := DB.Model(&User{}).Where("id = ?", user.Id).Update("display_name", displayName).Error; err != nil {
+			return err
+		}
+		user.DisplayName = displayName
+	}
+
+	email = NormalizeEmail(email)
+	if user.Email != "" || email == "" {
+		return nil
+	}
+	if err := DB.Transaction(func(tx *gorm.DB) error {
+		return withNormalizedEmailLock(tx, email, func(tx *gorm.DB) error {
+			if err := ensureEmailAvailableWithTx(tx, email, user.Id); err != nil {
+				return err
+			}
+			return tx.Model(&User{}).Where("id = ?", user.Id).Update("email", email).Error
+		})
+	}); err != nil {
+		if errors.Is(err, ErrEmailAlreadyTaken) {
+			return nil
+		}
+		return err
+	}
+	user.Email = email
+	return updateUserEmailCache(user.Id, email)
+}
+
 func (user *User) Insert(inviterId int) error {
 	if err := DB.Transaction(func(tx *gorm.DB) error {
 		return withNormalizedEmailLock(tx, user.Email, func(tx *gorm.DB) error {

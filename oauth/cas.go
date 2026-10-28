@@ -40,6 +40,10 @@ func init() {
 // interface halves stay a single round trip.
 type CASProvider struct{}
 
+// A CAS sign-in carries the campus directory's own record of the account, so it
+// takes part in filling in missing profile fields (see BackfillsMissingProfile).
+var _ ProfileBackfillProvider = (*CASProvider)(nil)
+
 // CASValidation is the outcome of one successful CAS ticket validation,
 // carrying it from ExchangeToken to GetUserInfo.
 type CASValidation struct {
@@ -229,6 +233,17 @@ func (p *CASProvider) SetProviderUserID(user *model.User, providerUserID string)
 
 func (p *CASProvider) GetProviderPrefix() string {
 	return "cas_"
+}
+
+// BackfillsMissingProfile reports that a CAS sign-in may fill in a display name
+// and an email address an existing account does not have yet.
+//
+// The attributes come from the campus directory for the account that just
+// authenticated through ticket validation, so they are the school's own record
+// rather than something the account holder chose. An account created before the
+// attribute names were configured therefore catches up on its next sign-in.
+func (p *CASProvider) BackfillsMissingProfile() bool {
+	return true
 }
 
 // ProviderUserIDColumn returns the users-table column storing this provider's user ID.

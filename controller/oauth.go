@@ -416,6 +416,16 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		if user.Id == 0 {
 			return nil, nil, &OAuthUserDeletedError{}
 		}
+		// Fill in a display name or email this account never got, for providers
+		// whose directory is the school's own record of the account. Only missing
+		// fields are written, and a failure is logged rather than returned: the
+		// user has already authenticated at the provider, so enriching the local
+		// record must not turn a completed sign-in into an error.
+		if backfiller, ok := provider.(oauth.ProfileBackfillProvider); ok && backfiller.BackfillsMissingProfile() {
+			if err := model.BackfillUserProfile(user, oauthUser.DisplayName, oauthUser.Email); err != nil {
+				common.SysError(common.LogText("[OAuth] Failed to fill in the profile fields of user %d: %s", user.Id, err.Error()))
+			}
+		}
 		return user, nil, nil
 	}
 
