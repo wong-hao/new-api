@@ -131,7 +131,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 | 邮箱属性 | `cas.email_attribute` | 留空即 `email`（另有 `mail` 兜底） |
 | 启用 CAS 登录 | `cas.enabled` | 服务端在服务器地址未配置时会**拒绝启用**（`controller/option.go`），报 `Cannot enable CAS. Enter the CAS server URL first.` |
 
-**该校放行的属性里确实有 `name` 和 `email` 这两个键** ❓（2026-10-28：`name` 能取到值、`email` 取不到；日志显示 `email` 这个键确实在返回里，所以要么值是空的、要么形状不认识。重建后看 `[OAuth-CAS] Email attribute not resolved` 那行的形状就知道，见 §8），所以"姓名属性 / 邮箱属性"两项**留空即可**，不要凭参考实现的字段名去猜。
+**该校放行的属性里确实有 `name` 和 `email`，但 `email` 的值可能是空的**（2026-10-29 线上实测：同一次断言 `name` 有值、`email` 返回的是 `[""]`——一个"空字符串的数组"；我们本来就支持字符串数组这种形状，读到空串就正确地什么都没写）。所以邮箱能不能绑上，取决于学校目录里那个账号有没有填邮箱，不是本仓库的取值问题。两项**留空即可**，不要凭参考实现的字段名去猜。
 
 ---
 
@@ -165,7 +165,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 | 回跳后 403 `State parameter is empty or mismatched` | 浏览器里没有这次流程的 state | 常见于跨标签页/换浏览器完成登录、或 sessionStorage 被清；重新点登录即可 |
 | 后端日志 `CAS ticket validation failed` | 票被 CAS 拒（过期/已消费/service 不一致） | 日志里有 CAS 返回的 `code`/`description`；重点看 service 是否两次一致 |
 | 登录成功但账号不对 | CAS 账号与预期不符 | 看 `users.cas_id`；主体是 `<cas:user>`，不是 attributes 里的 `staffNo`/`localAccount` |
-| CAS 登录成功，但账号邮箱一直是空 | `email` 没进断言，或它给的形状我们读不出来（空串 / 对象 / 对象数组）。补写只补空字段、且邮箱被占用时静默跳过，所以**不会报错**，只能看日志 | 日志里找 `[OAuth-CAS] Email attribute not resolved; candidates: …`：`candidates` 逐个写明候选属性到没到、到了是什么形状——`string(0)` = 属性到了但是空串（学校目录里这个账号没填邮箱），`object{…}` / `array[…]` = 到了但结构不认识（要扩 `casAttributeString`），全 `absent` = 学校没给这个 service 放行该属性（要联系学校加放行）。后面那串是 CAS 实际返回的全部属性键名。另一行 `[OAuth] Profile backfill left a field empty for user …` 说明补写后还剩哪个字段空、本次断言给没给 |
+| CAS 登录成功，但账号邮箱一直是空 | `email` 没进断言，或它的值是空的。补写只补空字段、且邮箱被占用时静默跳过，所以**不会报错**，只能看日志 | 日志里找 `[OAuth-CAS] Email attribute not resolved; candidates: …`：`candidates` 逐个写明候选属性到没到、到了是什么形状——`string(0)` / `array[string(0)]` = 属性到了但值是空串（学校目录里这个账号没填邮箱，实测该校常是这种），`object{…}` / 别的形状 = 到了但我们不认识（要扩 `casAttributeString`），全 `absent` = 学校没给这个 service 放行该属性（要联系学校加放行）。后面那串是 CAS 实际返回的全部属性键名。另一行 `[OAuth] Profile backfill left a field empty for user …` 说明补写后还剩哪个字段空、本次断言给没给 |
 
 排查时先分层：CAS 的错误页 = **第一跳就被拒**（登记问题，与本仓库代码无关）；能回到本站并带 ticket = 登记已通，问题在本仓库或票据校验这一段。
 
@@ -208,6 +208,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 
 ## 12. 未决 / 待办
 
-- ⏳ **线上真实登录验证**：登记生效 + 新镜像上线后走一次，确认回跳 URL 形状与服务端会话都正常。
+- ⏳ **线上真实登录验证**：登记生效 + 新镜像上线后走一次，确认回跳 URL 形状与服务端会话都正常。✅ 2026-10-28 已走通（`/oauth/cas?ticket=…`，会话正常）。
+- ⏳ **邮箱是不是全校都为空**：目前只验过一个账号，它的 `email` 是 `[""]`。换一个学校目录里确实有邮箱的账号（学生号、或另一位同事）登一次，日志那行应变成 `email=array[string(N)]`（N>0），并且资料页立刻显示邮箱；若全校都是 `[""]`，说明这个 service 的 email 放行配的是空值，要找学校确认。
 - ❓ **单一注销的语义**：学校那格若其实是 back-channel（CAS 主动 POST 通知应用），当前实现接不住。与校内另一套集成不同，本仓库有服务端会话表，理论上可以真正实现会话失效，但需要先确认学校是否强制。
 - ❓ **姓名/邮箱的落点**：目前只映射到 `users.display_name` / `users.email`，且**只在字段为空时补写**，账号已有的值不覆盖（所以用户在本站改过的昵称/邮箱不会被下次登录冲掉）；要不要更进一步——比如每次登录都以校内记录为准（改名的场景）、或与其他校内系统对齐——尚未决定。
