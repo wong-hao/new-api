@@ -89,6 +89,7 @@ const oauthSchema = z.object({
     server_url: z.string(),
     name_attribute: z.string(),
     email_attribute: z.string(),
+    group_enabled: z.boolean(),
     group_attribute: z.string(),
   }),
   LinuxDOOAuthEnabled: z.boolean(),
@@ -125,6 +126,7 @@ type FlatOAuthDefaults = {
   'cas.display_name': string
   'cas.name_attribute': string
   'cas.email_attribute': string
+  'cas.group_enabled': boolean
   'cas.group_attribute': string
   'cas.enabled': boolean
   LinuxDOOAuthEnabled: boolean
@@ -219,6 +221,7 @@ const buildFormDefaults = (defaults: FlatOAuthDefaults): OAuthFormValues => ({
     server_url: defaults['cas.server_url'] ?? '',
     name_attribute: defaults['cas.name_attribute'] ?? '',
     email_attribute: defaults['cas.email_attribute'] ?? '',
+    group_enabled: defaults['cas.group_enabled'] ?? false,
     group_attribute: defaults['cas.group_attribute'] ?? '',
   },
   LinuxDOOAuthEnabled: defaults.LinuxDOOAuthEnabled,
@@ -256,6 +259,7 @@ const normalizeFormValues = (values: OAuthFormValues): FlatOAuthDefaults => ({
   'cas.display_name': values.cas.display_name,
   'cas.name_attribute': values.cas.name_attribute,
   'cas.email_attribute': values.cas.email_attribute,
+  'cas.group_enabled': values.cas.group_enabled,
   'cas.group_attribute': values.cas.group_attribute,
   'cas.enabled': values.cas.enabled,
   LinuxDOOAuthEnabled: values.LinuxDOOAuthEnabled,
@@ -989,6 +993,29 @@ export function OAuthSection(props: OAuthSectionProps) {
 
                 <FormField
                   control={form.control}
+                  name='cas.group_enabled'
+                  render={({ field }) => (
+                    <SettingsSwitchItem>
+                      <SettingsSwitchContent>
+                        <FormLabel>{t('Group accounts by department')}</FormLabel>
+                        <FormDescription>
+                          {t(
+                            "Sets the account's group to the department this CAS asserts, on every sign-in. This replaces a group set by hand."
+                          )}
+                        </FormDescription>
+                      </SettingsSwitchContent>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </SettingsSwitchItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name='cas.group_attribute'
                   render={({ field }) => (
                     <FormItem>
@@ -1008,7 +1035,7 @@ export function OAuthSection(props: OAuthSectionProps) {
                       </FormControl>
                       <FormDescription>
                         {t(
-                          'CAS attribute holding the department, which becomes the group of the signing-in account. Leave empty to leave groups alone.'
+                          'CAS attribute holding the department. Leave empty to use deptName.'
                         )}
                       </FormDescription>
                       <FormMessage />

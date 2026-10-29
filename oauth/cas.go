@@ -216,6 +216,15 @@ func (p *CASProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAut
 	if email == "" {
 		logger.LogError(ctx, common.LogText("[OAuth-CAS] Email attribute not resolved; candidates: %s; CAS returned: %s", casAttributeReport(validation.Attributes, emailCandidates...), casAttributeShapes(validation.Attributes)))
 	}
+	if settings.GroupEnabled {
+		// A department attribute this deployment named but does not receive is a
+		// wrong name or an attribute the server withholds, and the sign-in would
+		// otherwise apply no group without saying why.
+		department := settings.EffectiveGroupAttribute()
+		if casAttributeString(validation.Attributes, department) == "" {
+			logger.LogError(ctx, common.LogText("[OAuth-CAS] Department attribute not resolved; candidates: %s; CAS returned: %s", casAttributeReport(validation.Attributes, department), casAttributeShapes(validation.Attributes)))
+		}
+	}
 
 	logger.LogDebug(ctx, "[OAuth-CAS] GetUserInfo success: principal=%s", validation.Principal)
 
@@ -259,15 +268,15 @@ func (p *CASProvider) BackfillsMissingProfile() bool {
 }
 
 // AssertedGroup returns the department this assertion places the account in, or
-// "" when an administrator has not named a department attribute or the assertion
-// does not carry one. The setting is what switches automatic grouping on, so no
-// deployment groups its accounts by department without asking for it.
+// "" when an administrator has not switched the grouping on or the assertion
+// carries no department. The switch is what asks for it, so no deployment groups
+// its accounts by department without saying so.
 func (p *CASProvider) AssertedGroup(token *OAuthToken) string {
-	attribute := system_setting.GetCASSettings().EffectiveGroupAttribute()
-	if attribute == "" || token == nil || token.CASValidation == nil {
+	settings := system_setting.GetCASSettings()
+	if !settings.GroupEnabled || token == nil || token.CASValidation == nil {
 		return ""
 	}
-	return firstCASAttribute(token.CASValidation.Attributes, attribute)
+	return firstCASAttribute(token.CASValidation.Attributes, settings.EffectiveGroupAttribute())
 }
 
 // ProviderUserIDColumn returns the users-table column storing this provider's user ID.

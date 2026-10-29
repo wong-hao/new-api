@@ -189,6 +189,7 @@ export type AuthSettings = {
   'cas.server_url': string
   'cas.name_attribute': string
   'cas.email_attribute': string
+  'cas.group_enabled': boolean
   'cas.group_attribute': string
   LinuxDOOAuthEnabled: boolean
   LinuxDOClientId: string

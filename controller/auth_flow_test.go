@@ -1128,7 +1128,7 @@ func TestOAuthBindIgnoresLegacyGitHubUsernames(t *testing.T) {
 // casProfileOAuthProvider follows the CAS provider contract for the fields a
 // sign-in can carry: the CAS principal identifies the account, the provider opts
 // in to filling in a missing display name and email, and it asserts the
-// department attribute an administrator named on the CAS settings.
+// department of the account.
 type casProfileOAuthProvider struct {
 	authFlowTestOAuthProvider
 	principal   string
@@ -1137,10 +1137,6 @@ type casProfileOAuthProvider struct {
 	department  string
 	backfills   bool
 }
-
-// casDepartmentAttribute is the attribute name the group tests name on the CAS
-// settings, matching the key the campus directory uses.
-const casDepartmentAttribute = "deptName"
 
 func (*casProfileOAuthProvider) GetName() string { return "CAS" }
 func (provider *casProfileOAuthProvider) GetUserInfo(context.Context, *oauth.OAuthToken) (*oauth.OAuthUser, error) {
@@ -1160,11 +1156,10 @@ func (*casProfileOAuthProvider) GetProviderPrefix() string              { return
 func (*casProfileOAuthProvider) ProviderUserIDColumn() string           { return "cas_id" }
 func (provider *casProfileOAuthProvider) BackfillsMissingProfile() bool { return provider.backfills }
 
-// AssertedGroup mirrors the provider: the department only counts under the
-// attribute name an administrator configured, so leaving that setting empty means
-// the sign-in asserts no group at all.
+// AssertedGroup mirrors the provider: the department only counts while the CAS
+// settings switch the grouping on.
 func (provider *casProfileOAuthProvider) AssertedGroup(*oauth.OAuthToken) string {
-	if system_setting.GetCASSettings().EffectiveGroupAttribute() != casDepartmentAttribute {
+	if !system_setting.GetCASSettings().GroupEnabled {
 		return ""
 	}
 	return provider.department
@@ -1237,41 +1232,41 @@ func TestOAuthLoginFillsInMissingProviderProfileFields(t *testing.T) {
 // follow the account, and what undoes a group set by hand.
 func TestOAuthLoginAppliesAssertedGroup(t *testing.T) {
 	const principal = "20210002"
-	const department = "网络与信息化处"
+	const department = "示例学院"
 	tests := []struct {
 		name             string
 		department       string
-		groupAttribute   string
+		groupEnabled     bool
 		accountGroup     string
 		expectGroup      string
 		expectGroupRatio bool
 		expectAudit      string
 	}{
 		{
-			name: "creates the asserted group and moves the account", department: department, groupAttribute: casDepartmentAttribute,
+			name: "creates the asserted group and moves the account", department: department, groupEnabled: true,
 			accountGroup: "default", expectGroup: department, expectGroupRatio: true,
-			expectAudit: `{"provider":"CAS","from":"default","to":"网络与信息化处","success":true}`,
+			expectAudit: `{"provider":"CAS","from":"default","to":"示例学院","success":true}`,
 		},
 		{
-			name: "reuses a group that already exists", department: "vip", groupAttribute: casDepartmentAttribute,
+			name: "reuses a group that already exists", department: "vip", groupEnabled: true,
 			accountGroup: "default", expectGroup: "vip", expectGroupRatio: true,
 			expectAudit: `{"provider":"CAS","from":"default","to":"vip","success":true}`,
 		},
 		{
-			name: "the assertion undoes a group set by hand", department: department, groupAttribute: casDepartmentAttribute,
+			name: "the assertion undoes a group set by hand", department: department, groupEnabled: true,
 			accountGroup: "vip", expectGroup: department, expectGroupRatio: true,
-			expectAudit: `{"provider":"CAS","from":"vip","to":"网络与信息化处","success":true}`,
+			expectAudit: `{"provider":"CAS","from":"vip","to":"示例学院","success":true}`,
 		},
 		{
-			name: "an account already in the group is not moved", department: department, groupAttribute: casDepartmentAttribute,
+			name: "an account already in the group is not moved", department: department, groupEnabled: true,
 			accountGroup: department, expectGroup: department, expectGroupRatio: true,
 		},
-		{name: "no group attribute is configured", department: department, accountGroup: "default", expectGroup: "default"},
-		{name: "the assertion carries no department", groupAttribute: casDepartmentAttribute, accountGroup: "default", expectGroup: "default"},
+		{name: "the grouping is switched off", department: department, accountGroup: "default", expectGroup: "default"},
+		{name: "the assertion carries no department", groupEnabled: true, accountGroup: "default", expectGroup: "default"},
 		{
 			// One rune longer than the users.group column holds.
-			name: "a name the group column cannot hold", department: strings.Repeat("部", 65),
-			groupAttribute: casDepartmentAttribute, accountGroup: "default", expectGroup: "default",
+			name: "a name the group column cannot hold", department: strings.Repeat("部", 65), groupEnabled: true,
+			accountGroup: "default", expectGroup: "default",
 		},
 	}
 	for _, test := range tests {
@@ -1289,7 +1284,7 @@ func TestOAuthLoginAppliesAssertedGroup(t *testing.T) {
 			// The sign-in publishes a group through the option layer, which a
 			// running server has already initialized.
 			common.OptionMap = map[string]string{}
-			*settings = system_setting.CASSettings{GroupAttribute: test.groupAttribute}
+			*settings = system_setting.CASSettings{GroupEnabled: test.groupEnabled}
 			require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", user.Id).Updates(map[string]any{
 				"cas_id": principal, "group": test.accountGroup,
 			}).Error)

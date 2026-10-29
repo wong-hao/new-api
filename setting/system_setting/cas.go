@@ -22,10 +22,11 @@ type CASSettings struct {
 	// CAS administrators and differ between deployments.
 	NameAttribute  string `json:"name_attribute"`
 	EmailAttribute string `json:"email_attribute"`
-	// GroupAttribute names the CAS attribute carrying the department an account
-	// belongs to, which a sign-in may turn into the account's group. Leaving it
-	// empty disables that, so no group is ever inferred from a deployment that
-	// did not ask for it.
+	// GroupEnabled turns the department an account signs in with into its group,
+	// and GroupAttribute names the attribute carrying that department. The switch
+	// is what asks for the grouping; the attribute keeps a default so turning it
+	// on without naming one still uses what the campus directory is known to send.
+	GroupEnabled   bool   `json:"group_enabled"`
 	GroupAttribute string `json:"group_attribute"`
 }
 
@@ -69,12 +70,17 @@ func (s *CASSettings) EffectiveEmailAttribute() string {
 	return "email"
 }
 
-// EffectiveGroupAttribute returns the configured department attribute, or "" when
-// automatic grouping is switched off. Unlike the name and email attributes it has
-// no default: a department attribute has no conventional name, and silently
-// picking one would place accounts in groups nobody asked for.
+// EffectiveGroupAttribute returns the configured department attribute, or
+// "deptName". Unlike name and email this one has no broadly conventional name,
+// but the switch beside it is what asks for the grouping, so a deployment that
+// turns that on and names nothing still gets the attribute the campus directory
+// is known to send — and a wrong name is reported rather than silently doing
+// nothing.
 func (s *CASSettings) EffectiveGroupAttribute() string {
-	return strings.TrimSpace(s.GroupAttribute)
+	if trimmed := strings.TrimSpace(s.GroupAttribute); trimmed != "" {
+		return trimmed
+	}
+	return "deptName"
 }
 
 // BaseURL returns the trimmed CAS context root, or "" when it is unusable.

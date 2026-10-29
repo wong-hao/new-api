@@ -190,8 +190,8 @@ func TestCASAttributeReportDescribesShapesWithoutValues(t *testing.T) {
 	attributes := map[string]any{
 		"email":  "a@b.cn",
 		"mail":   "",
-		"dept":   map[string]any{"deptName": "网络与信息化处", "deptCode": "1001"},
-		"groups": []any{map[string]any{"groupName": "网络与信息化处", "groupId": "7"}},
+		"dept":   map[string]any{"deptName": "示例学院", "deptCode": "1001"},
+		"groups": []any{map[string]any{"groupName": "示例学院", "groupId": "7"}},
 	}
 
 	assert.Equal(t, "email=string(6), mail=string(0)", casAttributeReport(attributes, "email", "mail"))
@@ -207,7 +207,7 @@ func TestCASAttributeReportDescribesShapesWithoutValues(t *testing.T) {
 	assert.Equal(t, "string(0)", casAttributeShape(attributes["mail"], casShapeDepth))
 	assert.Equal(t, "object{deptCode, deptName}", casAttributeShape(attributes["dept"], casShapeDepth))
 	assert.Equal(t, "array[object{groupId, groupName}]", casAttributeShape(attributes["groups"], casShapeDepth))
-	assert.NotContains(t, casAttributeShape(attributes["dept"], casShapeDepth), "网络与信息化处")
+	assert.NotContains(t, casAttributeShape(attributes["dept"], casShapeDepth), "示例学院")
 	assert.Equal(t, "float64", casAttributeShape(float64(1), casShapeDepth))
 
 	// Past the item limit, and below the depth limit, a collection is described
@@ -316,6 +316,21 @@ func TestCASSettingsDeriveEndpointsFromServerURL(t *testing.T) {
 	// as CAS expects to receive it.
 	assert.Equal(t, "https://cas.example.edu.cn/cas/login?service="+url.QueryEscape(casTestService), settings.SignInURL())
 	assert.Equal(t, "https://cas.example.edu.cn/cas/logout?service="+url.QueryEscape(casTestOrigin+"/sign-in"), settings.SingleLogoutURL())
+}
+
+// The department attribute keeps a default because the switch beside it is what
+// asks for the grouping, so a deployment that turns that on and names nothing
+// still gets the attribute the campus directory is known to send.
+func TestCASEffectiveGroupAttributeFallsBackToDeptName(t *testing.T) {
+	settings := system_setting.GetCASSettings()
+	original := *settings
+	t.Cleanup(func() { *settings = original })
+
+	*settings = system_setting.CASSettings{}
+	assert.Equal(t, "deptName", settings.EffectiveGroupAttribute())
+
+	*settings = system_setting.CASSettings{GroupAttribute: "  department  "}
+	assert.Equal(t, "department", settings.EffectiveGroupAttribute())
 }
 
 func TestCASProviderGetNameFallsBackToCAS(t *testing.T) {

@@ -130,10 +130,11 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 | 显示名称 | `cas.display_name` | 登录按钮文案，留空显示 `CAS` |
 | 姓名属性 | `cas.name_attribute` | 留空即 `name`（代码另有 `nick` / `cn` / `displayName` 兜底） |
 | 邮箱属性 | `cas.email_attribute` | 留空即 `email`（另有 `mail` 兜底） |
-| 部门属性 | `cas.group_attribute` | **留空＝不按部门自动分组**（没有默认值）。填 `deptName` 即启用：登录时把 `users.group` 设为该值 |
+| 按部门自动分组 | `cas.group_enabled` | 开关，**默认关**。打开后登录时把 `users.group` 设为断言里的部门名 |
+| 部门属性 | `cas.group_attribute` | 只在上面的开关打开时生效。**留空即 `deptName`**（和姓名/邮箱一样有兜底）。填错不会分组，但日志会报 `Department attribute not resolved` |
 | 启用 CAS 登录 | `cas.enabled` | 服务端在服务器地址未配置时会**拒绝启用**（`controller/option.go`），报 `Cannot enable CAS. Enter the CAS server URL first.` |
 
-**该校放行的属性里确实有 `name` 和 `email`，但职工账号的 `email` 是空的**（2026-10-29 线上实测：同一次断言 `name` 是 `["王昊"]`，`email` 是 `[""]`——一个"空字符串的数组"；我们本来就支持字符串数组这种形状，读到空串就正确地什么都没写）。那次返回里**所有联系方式类属性都是空的**：`email`、`mobile`、`tel`、`nick`、`remark`、`netid`、`idCard`、`dn` 全是 `string(0)` 或空数组；有值的只有账号/部门/身份类字段——`staffNo`/`localAccount`/`accountName`/`ssoAccount`/`studentNo` 都是那个 11 位的学工号，`uid`/`userNo` 是 36 位 UUID，`deptName`/`organizationName` 是部门名。**没有任何属性像邮箱，所以没有可替代的取值来源**。邮箱能不能绑上，取决于学校目录里那个账号有没有填邮箱，不是本仓库的取值问题。两项**留空即可**，不要凭参考实现的字段名去猜。
+**该校放行的属性里确实有 `name` 和 `email`，但职工账号的 `email` 是空的**（2026-10-29 线上实测：同一次断言里 `name` 有值（真实姓名，本文不记），`email` 是 `[""]`——一个"空字符串的数组"；我们本来就支持字符串数组这种形状，读到空串就正确地什么都没写）。那次返回里**所有联系方式类属性都是空的**：`email`、`mobile`、`tel`、`nick`、`remark`、`netid`、`idCard`、`dn` 全是 `string(0)` 或空数组；有值的只有账号/部门/身份类字段——`staffNo`/`localAccount`/`accountName`/`ssoAccount`/`studentNo` 都是那个 11 位的学工号，`uid`/`userNo` 是 36 位 UUID，`deptName`/`organizationName` 是部门名（本文同样不记真实值）。**没有任何属性像邮箱，所以没有可替代的取值来源**。邮箱能不能绑上，取决于学校目录里那个账号有没有填邮箱，不是本仓库的取值问题。两项**留空即可**，不要凭参考实现的字段名去猜。
 
 ---
 
@@ -141,7 +142,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 
 - 主体取自**协议层**的 `<cas:user>`（`serviceResponse.authenticationSuccess.user`），**不从 attributes 取**：属性放行策略由学校随时可改，从属性取等于把"能否登录"押在对方配置上。
 - 本 provider 只取两个属性：`name` → `OAuthUser.DisplayName`，`email` → `OAuthUser.Email`。**其余全部丢弃**（属性 map 只在本次请求的内存里经由 `OAuthUser.Extra` 传递，不落库、不写日志）。
-- 该校断言含敏感 PII（实测放行约 35 个属性，其中 `idCard`、`mobile`、`tel`、`dn` 属个人信息）。姓名或邮箱任取不到时，只记录**候选属性名 + 到没到 + 值的形状**（如 `string(0)`、`array[string(0)]`，够判断"是空的还是我们读不懂"），以及 CAS 实际返回的**每个属性的形状**（`account=string(8), email=array[string(0)], …`，一眼看出哪些为空），**绝不记录值**；登录成功时也会在补写后记一行「还有哪个字段是空的 + 本次断言给没给」（`[OAuth] Profile backfill left a field empty for user …`），同样不含值。
+- 该校断言含敏感 PII（实测放行约 35 个属性，其中 `idCard`、`mobile`、`tel`、`dn` 属个人信息）。姓名、邮箱（以及打开自动分组后的部门属性）任取不到时，只记录**候选属性名 + 到没到 + 值的形状**（如 `string(0)`、`array[string(0)]`，够判断"是空的还是我们读不懂"），以及 CAS 实际返回的**每个属性的形状**（`account=string(8), email=array[string(0)], …`，一眼看出哪些为空），**绝不记录值**；登录成功时也会在补写后记一行「还有哪个字段是空的 + 本次断言给没给」（`[OAuth] Profile backfill left a field empty for user …`），同样不含值。
 - 属性值形状不定：单值是字符串、多值是数组（`casAttributeString` 两种都接受）。参考实现里还有个"数组包着几十个字段对象"的 `groups` 属性——不需要它，忽略。
 
 ---
@@ -151,7 +152,7 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 - **首次登录**：以 `<cas:user>` 作为 `users.cas_id`。命中已有 `cas_id` 直接登录；没有则在「允许新用户注册」开启时建号——用户名优先用统一认证账号（职工号）本身，被占用或超长则退回 `cas_<自增ID>`；显示名优先取断言的 `name`，取不到则退回统一认证账号；邮箱取断言的 `email`（做归一化）。
 - **再次登录会补写缺失字段**：命中已有 `cas_id` 时，如果该账号的 `display_name` 或 `email` 仍是空，就用本次断言的值补上（邮箱归一化后写，走与其它邮箱写入相同的加锁路径）。**账号已有的值一律不动**——用户在本站改过的昵称/邮箱不会被下次登录覆盖。补上的邮箱同时成为该账号可用于密码登录的标识（`ValidateAndFill` 按 `username = ? OR email = ?` 查人），前提是该账号本身有密码。这条补写只对声明了 `ProfileBackfillProvider` 的 provider 生效，目前只有 CAS；补写失败只记日志，不影响这次已经成功的登录（`controller/oauth.go` 的命中分支 + `model.BackfillUserProfile`）。它解决的是「建号时属性名还没配好、账号一直是空邮箱/空姓名」这类历史账号。
 - **不会按邮箱自动合并到已有本地账号**：若断言里的邮箱已被**另一个**账号占用，建号会直接失败并提示邮箱已被占用（`OAuthEmailAlreadyTakenError`），不会合并、也不会静默改邮箱；补写路径遇到同样情况则**静默跳过**（登录照常成功，账号邮箱保持为空）。已有本地账号的用户想用 CAS 登录同一个账号，需要先登录后到「账号绑定」里绑定（绑定走弹窗流程，与其它 provider 一致）；否则会另开一个账号。
-- **按部门自动分组**（要先在设置里填「部门属性」，留空＝不启用）：断言里的部门名**每次登录都会**写成该账号的分组。分组不存在就自动建一个、倍率复制 `default` 组的；已存在就直接用（**断言权威**：所以断言里出现 `vip`，人就会真的进 `vip`；管理员手工设过的组也会在下次登录时被改回部门组，要让人脱离自动管理只能清空这个配置项）。组变了会撤销该用户其它会话一次并写一条 `user.group_change` 审计（旧组→新组），沿用管理员改组那套语义。断言里没有该属性、或部门名超过 64 字符时不动；自动建出来的组**不写进「用户可选分组」**，免得给全校每个人的分组下拉里塞几十个部门。
+- **按部门自动分组**（设置里的开关，默认关；属性名留空即 `deptName`）：断言里的部门名**每次登录都会**写成该账号的分组。分组不存在就自动建一个、倍率复制 `default` 组的；已存在就直接用（**断言权威**：所以断言里出现 `vip`，人就会真的进 `vip`；管理员手工设过的组也会在下次登录时被改回部门组，要让人脱离自动管理只能关掉这个开关）。组变了会撤销该用户其它会话一次并写一条 `user.group_change` 审计（旧组→新组），沿用管理员改组那套语义。断言里没有该属性、属性名填错、或部门名超过 64 字符时不动（后两种各有一行日志，见 §8）；自动建出来的组**不写进「用户可选分组」**，免得给全校每个人的分组下拉里塞几十个部门。
 - **「允许新用户注册」关闭时**，未绑定过的 CAS 用户会被直接拒绝（`controller/oauth.go` 的通用建号分支）；已绑定过的用户不受影响。校内场景可以把这条当白名单用，但要清楚它的行为。
 - **注销**：仅当会话是通过 CAS 建立的（登录方式记为 `oauth:cas`）时，后端在登出响应里返回 `sso_logout_url`，前端跳 `{CAS}/logout?service={网站地址}/sign-in`——即同时结束 CAS 的单一登录会话。普通密码登录的会话不会触发这一步（否则会误杀无关的 SSO 会话）。
 
@@ -169,6 +170,8 @@ curl -sS http://127.0.0.1:3000/api/status | grep -o '"cas_login_url":"[^"]*"'
 | 后端日志 `CAS ticket validation failed` | 票被 CAS 拒（过期/已消费/service 不一致） | 日志里有 CAS 返回的 `code`/`description`；重点看 service 是否两次一致 |
 | 登录成功但账号不对 | CAS 账号与预期不符 | 看 `users.cas_id`；主体是 `<cas:user>`，不是 attributes 里的 `staffNo`/`localAccount` |
 | CAS 登录成功，但账号邮箱一直是空 | `email` 没进断言，或它的值是空的。补写只补空字段、且邮箱被占用时静默跳过，所以**不会报错**，只能看日志 | 日志里找 `[OAuth-CAS] Email attribute not resolved; candidates: …`：`candidates` 逐个写明候选属性到没到、到了是什么形状——`string(0)` / `array[string(0)]` = 属性到了但值是空串（学校目录里这个账号没填邮箱，实测该校常是这种），`object{…}` / 别的形状 = 到了但我们不认识（要扩 `casAttributeString`），全 `absent` = 学校没给这个 service 放行该属性（要联系学校加放行）。后面那串是 CAS 实际返回的**全部属性及各自形状**（`account=string(8), email=array[string(0)], groups=array[object{…}], …`），逐个看就能知道哪些属性有值、哪些是空的，也就能判断有没有别的属性可以拿来当邮箱用（换属性名改 `cas.email_attribute` 即可，不用改代码）。另一行 `[OAuth] Profile backfill left a field empty for user …` 说明补写后还剩哪个字段空、本次断言给没给 |
+
+| 打开了「按部门自动分组」但登录后分组没变 | 属性名填错、断言里没有该部门、部门名超过 64 字符，或者分组本来就等于该值（成功时不写日志） | 日志里找 `[OAuth-CAS] Department attribute not resolved; candidates: …`（候选名 + 形状，读法同 §6）和 `asserted group name is too long, ignored for user N`；两条都没有，就去用户管理确认分组是否已经是对的 |
 
 排查时先分层：CAS 的错误页 = **第一跳就被拒**（登记问题，与本仓库代码无关）；能回到本站并带 ticket = 登记已通，问题在本仓库或票据校验这一段。
 

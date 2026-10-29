@@ -325,6 +325,7 @@
   "[OAuth-LinuxDO] GetUserInfo response status: %d": "[OAuth-LinuxDO] GetUserInfo 响应状态码: %d",
   "[OAuth-LinuxDO] GetUserInfo success: id=%d, username=%s": "[OAuth-LinuxDO] GetUserInfo 成功: id=%d, username=%s",
   "[OAuth-LinuxDO] GetUserInfo: trust level too low (required=%d, current=%d)": "[OAuth-LinuxDO] GetUserInfo: 信任级别不足 (required=%d, current=%d)",
+  "[OAuth-CAS] Department attribute not resolved; candidates: %s; CAS returned: %s": "[OAuth-CAS] 部门属性没取到；候选: %s；CAS 返回的属性及形状: %s",
   "[OAuth-CAS] Display name attribute not resolved; candidates: %s; CAS returned: %s": "[OAuth-CAS] 姓名属性没取到；候选: %s；CAS 返回的属性及形状: %s",
   "[OAuth-CAS] Email attribute not resolved; candidates: %s; CAS returned: %s": "[OAuth-CAS] 邮箱属性没取到；候选: %s；CAS 返回的属性及形状: %s",
   "[OAuth-CAS] ExchangeToken decode error: %s": "[OAuth-CAS] ExchangeToken 解析响应失败: %s",
