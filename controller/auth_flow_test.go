@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/gin-gonic/gin"
@@ -1125,15 +1126,21 @@ func TestOAuthBindIgnoresLegacyGitHubUsernames(t *testing.T) {
 }
 
 // casProfileOAuthProvider follows the CAS provider contract for the fields a
-// sign-in can carry: the CAS principal identifies the account, and the provider
-// opts in to filling in a missing display name and email.
+// sign-in can carry: the CAS principal identifies the account, the provider opts
+// in to filling in a missing display name and email, and it asserts the
+// department attribute an administrator named on the CAS settings.
 type casProfileOAuthProvider struct {
 	authFlowTestOAuthProvider
 	principal   string
 	displayName string
 	email       string
+	department  string
 	backfills   bool
 }
+
+// casDepartmentAttribute is the attribute name the group tests name on the CAS
+// settings, matching the key the campus directory uses.
+const casDepartmentAttribute = "deptName"
 
 func (*casProfileOAuthProvider) GetName() string { return "CAS" }
 func (provider *casProfileOAuthProvider) GetUserInfo(context.Context, *oauth.OAuthToken) (*oauth.OAuthUser, error) {
@@ -1152,6 +1159,16 @@ func (*casProfileOAuthProvider) SetProviderUserID(user *model.User, principal st
 func (*casProfileOAuthProvider) GetProviderPrefix() string              { return "cas_" }
 func (*casProfileOAuthProvider) ProviderUserIDColumn() string           { return "cas_id" }
 func (provider *casProfileOAuthProvider) BackfillsMissingProfile() bool { return provider.backfills }
+
+// AssertedGroup mirrors the provider: the department only counts under the
+// attribute name an administrator configured, so leaving that setting empty means
+// the sign-in asserts no group at all.
+func (provider *casProfileOAuthProvider) AssertedGroup(*oauth.OAuthToken) string {
+	if system_setting.GetCASSettings().EffectiveGroupAttribute() != casDepartmentAttribute {
+		return ""
+	}
+	return provider.department
+}
 
 // TestOAuthLoginFillsInMissingProviderProfileFields covers a sign-in that lands
 // on an account created before the provider's name and email attributes were
@@ -1211,4 +1228,124 @@ func TestOAuthLoginFillsInMissingProviderProfileFields(t *testing.T) {
 			assert.Equal(t, test.expectEmail, reloaded.Email)
 		})
 	}
+}
+
+// TestOAuthLoginAppliesAssertedGroup covers the group a sign-in applies on its
+// own: the department counts only under the attribute an administrator named, a
+// group that does not exist yet is created with the default group's ratio, and the
+// assertion is authoritative on every sign-in — which is what lets a transfer
+// follow the account, and what undoes a group set by hand.
+func TestOAuthLoginAppliesAssertedGroup(t *testing.T) {
+	const principal = "20210002"
+	const department = "网络与信息化处"
+	tests := []struct {
+		name             string
+		department       string
+		groupAttribute   string
+		accountGroup     string
+		expectGroup      string
+		expectGroupRatio bool
+		expectAudit      string
+	}{
+		{
+			name: "creates the asserted group and moves the account", department: department, groupAttribute: casDepartmentAttribute,
+			accountGroup: "default", expectGroup: department, expectGroupRatio: true,
+			expectAudit: `{"provider":"CAS","from":"default","to":"网络与信息化处","success":true}`,
+		},
+		{
+			name: "reuses a group that already exists", department: "vip", groupAttribute: casDepartmentAttribute,
+			accountGroup: "default", expectGroup: "vip", expectGroupRatio: true,
+			expectAudit: `{"provider":"CAS","from":"default","to":"vip","success":true}`,
+		},
+		{
+			name: "the assertion undoes a group set by hand", department: department, groupAttribute: casDepartmentAttribute,
+			accountGroup: "vip", expectGroup: department, expectGroupRatio: true,
+			expectAudit: `{"provider":"CAS","from":"vip","to":"网络与信息化处","success":true}`,
+		},
+		{
+			name: "an account already in the group is not moved", department: department, groupAttribute: casDepartmentAttribute,
+			accountGroup: department, expectGroup: department, expectGroupRatio: true,
+		},
+		{name: "no group attribute is configured", department: department, accountGroup: "default", expectGroup: "default"},
+		{name: "the assertion carries no department", groupAttribute: casDepartmentAttribute, accountGroup: "default", expectGroup: "default"},
+		{
+			// One rune longer than the users.group column holds.
+			name: "a name the group column cannot hold", department: strings.Repeat("部", 65),
+			groupAttribute: casDepartmentAttribute, accountGroup: "default", expectGroup: "default",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			user, _ := setupSecurityEnrollmentTest(t)
+			previousRatios := ratio_setting.GroupRatio2JSONString()
+			previousOptions := common.OptionMap
+			settings := system_setting.GetCASSettings()
+			previousSettings := *settings
+			t.Cleanup(func() {
+				require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(previousRatios))
+				common.OptionMap = previousOptions
+				*settings = previousSettings
+			})
+			// The sign-in publishes a group through the option layer, which a
+			// running server has already initialized.
+			common.OptionMap = map[string]string{}
+			*settings = system_setting.CASSettings{GroupAttribute: test.groupAttribute}
+			require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", user.Id).Updates(map[string]any{
+				"cas_id": principal, "group": test.accountGroup,
+			}).Error)
+
+			const slug = "cas-asserted-group-test"
+			oauth.Register(slug, &casProfileOAuthProvider{principal: principal, department: test.department})
+			t.Cleanup(func() { oauth.Unregister(slug) })
+			token, _, err := model.CreateAuthFlow(model.AuthFlowCreate{
+				Purpose: model.AuthFlowPurposeOAuth, Provider: slug, Intent: model.AuthFlowIntentLogin,
+				Payload: `{}`, ExpiresAt: time.Now().Add(time.Minute),
+			})
+			require.NoError(t, err)
+			router := gin.New()
+			router.GET("/api/oauth/:provider", HandleOAuth)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/oauth/"+slug+"?state="+token+"&code=service-ticket", nil))
+
+			var result struct {
+				Success bool `json:"success"`
+			}
+			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
+			require.True(t, result.Success, response.Body.String())
+
+			var reloaded model.User
+			require.NoError(t, model.DB.First(&reloaded, user.Id).Error)
+			assert.Equal(t, test.expectGroup, reloaded.Group)
+			if test.department != "" {
+				ratios := ratio_setting.GetGroupRatioCopy()
+				if test.expectGroupRatio {
+					assert.Equal(t, ratios["default"], ratios[test.department])
+				} else {
+					assert.NotContains(t, ratios, test.department)
+				}
+			}
+			auditParams := groupChangeAuditParams(t)
+			if test.expectAudit == "" {
+				assert.Empty(t, auditParams)
+			} else {
+				assert.JSONEq(t, test.expectAudit, auditParams)
+			}
+		})
+	}
+}
+
+// groupChangeAuditParams returns the parameters of the group change a sign-in
+// recorded, or "" when it recorded none.
+func groupChangeAuditParams(t *testing.T) string {
+	t.Helper()
+	var audits []model.AuditLog
+	require.NoError(t, model.LOG_DB.Where("action = ?", "user.group_change").Order("id").Find(&audits).Error)
+	if len(audits) == 0 {
+		return ""
+	}
+	require.Len(t, audits, 1)
+	require.NotNil(t, audits[0].Other.Op)
+	encoded, err := common.Marshal(audits[0].Other.Op.Params)
+	require.NoError(t, err)
+	return string(encoded)
 }

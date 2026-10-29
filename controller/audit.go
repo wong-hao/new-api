@@ -20,6 +20,7 @@ import (
 var auditContentTemplates = map[string]string{
 	"user.create":               "Created user ${username} (role ${role})",
 	"user.update":               "Updated user ${username} (ID: ${id})",
+	"user.group_change":         "Changed group from ${from} to ${to}",
 	"user.delete":               "Deleted user ${username} (ID: ${id})",
 	"user.account_delete":       "Account deletion",
 	"user.manage":               "Performed ${action} on user ${username} (ID: ${id})",

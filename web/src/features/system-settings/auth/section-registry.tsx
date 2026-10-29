@@ -72,6 +72,7 @@ const AUTH_SECTIONS = [
           'cas.server_url': settings['cas.server_url'],
           'cas.name_attribute': settings['cas.name_attribute'],
           'cas.email_attribute': settings['cas.email_attribute'],
+          'cas.group_attribute': settings['cas.group_attribute'],
           LinuxDOOAuthEnabled: settings.LinuxDOOAuthEnabled,
           LinuxDOClientId: settings.LinuxDOClientId,
           LinuxDOClientSecret: settings.LinuxDOClientSecret,

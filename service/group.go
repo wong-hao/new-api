@@ -2,6 +2,8 @@ package service
 
 import (
 	"strings"
+	"sync"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -131,4 +133,71 @@ func GetUserGroupRatio(userGroup, group string) float64 {
 		return ratio
 	}
 	return ratio_setting.GetGroupRatio(group)
+}
+
+const (
+	// defaultUserGroup is the group every account starts in, and the one an
+	// asserted group copies its ratio from.
+	defaultUserGroup = "default"
+	// maxGroupNameLength matches users.group, a varchar(64) column: a longer name
+	// would be truncated or rejected by the database.
+	maxGroupNameLength = 64
+)
+
+// assertedGroupMutex serializes the read-modify-write that adds a group to the
+// group ratio settings, so two sign-ins from different departments at the same
+// moment cannot drop each other's group.
+var assertedGroupMutex sync.Mutex
+
+// AssignAssertedGroup places an account in the group an external identity source
+// named for it, creating that group when it does not exist yet. It reports
+// whether the account moved, so the caller can record the change.
+//
+// The asserted group is authoritative on every sign-in, which is what makes a
+// department transfer follow the account. It therefore also undoes a group an
+// administrator set by hand: a deployment that needs a hand-set group to stand on
+// its own must not name a group attribute. A sign-in that asserts the group the
+// account already has moves nothing, though it still records the ratio a group is
+// missing.
+func AssignAssertedGroup(user *model.User, group string) (bool, error) {
+	group = strings.TrimSpace(group)
+	if group == "" {
+		return false, nil
+	}
+	if utf8.RuneCountInString(group) > maxGroupNameLength {
+		common.SysLog(common.LogText("asserted group name is too long, ignored for user %d", user.Id))
+		return false, nil
+	}
+	if err := ensureGroupRatio(group); err != nil {
+		return false, err
+	}
+	if group == user.Group {
+		return false, nil
+	}
+	user.Group = group
+	return true, user.Edit(false)
+}
+
+// ensureGroupRatio makes sure a group can be billed for, copying the default
+// group's ratio. A group with no ratio of its own logs a missing ratio and is
+// charged as the default group anyway, so the entry makes the arrangement visible
+// in the group ratio settings, where an administrator can price it separately.
+func ensureGroupRatio(group string) error {
+	assertedGroupMutex.Lock()
+	defer assertedGroupMutex.Unlock()
+
+	if ratio_setting.ContainsGroupRatio(group) {
+		return nil
+	}
+	ratios := ratio_setting.GetGroupRatioCopy()
+	ratios[group] = ratio_setting.GetGroupRatio(defaultUserGroup)
+	encoded, err := common.Marshal(ratios)
+	if err != nil {
+		return err
+	}
+	if err := model.UpdateOption("GroupRatio", string(encoded)); err != nil {
+		return err
+	}
+	common.SysLog(common.LogText("created group %s with the default group's ratio", group))
+	return nil
 }

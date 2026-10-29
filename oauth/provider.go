@@ -61,3 +61,15 @@ type ProfileBackfillProvider interface {
 	// fill in a missing display name and email on an existing account.
 	BackfillsMissingProfile() bool
 }
+
+// GroupAssignmentProvider is implemented by providers whose assertion names the
+// group an account belongs in.
+//
+// The provider only reports the name; whether the account is moved, and what a
+// new group is billed at, stay in the login flow, so a provider never writes user
+// settings itself.
+type GroupAssignmentProvider interface {
+	// AssertedGroup returns the group this assertion names, or "" when the
+	// deployment has not asked for one or the assertion carries none.
+	AssertedGroup(token *OAuthToken) string
+}

@@ -339,7 +339,22 @@ func handleOAuthLogin(c *gin.Context, provider oauth.Provider, oauthUser *oauth.
 		return
 	}
 
-	// 9. Setup login
+	// 9. Place the account in the group its identity source asserts, before the
+	// session is issued so the new session carries the group the login applied.
+	if grouper, ok := provider.(oauth.GroupAssignmentProvider); ok {
+		if asserted := grouper.AssertedGroup(token); asserted != "" {
+			previousGroup := user.Group
+			moved, err := service.AssignAssertedGroup(user, asserted)
+			if err != nil {
+				common.SysError(common.LogText("[OAuth] Failed to assign the asserted group to user %d: %s", user.Id, err.Error()))
+			}
+			if moved {
+				recordAssertedGroupChange(c, provider, user, previousGroup)
+			}
+		}
+	}
+
+	// 10. Setup login
 	setupLogin(user, migration, c)
 }
 
@@ -595,6 +610,16 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 
 	return user, nil, nil
+}
+
+// recordAssertedGroupChange records a group a sign-in applied on its own, so an
+// administrator can tell where an account's group came from. No session exists
+// yet on the login path either, so the row carries the user's own role.
+func recordAssertedGroupChange(c *gin.Context, provider oauth.Provider, user *model.User, previousGroup string) {
+	params := map[string]any{"provider": provider.GetName(), "from": previousGroup, "to": user.Group, "success": true}
+	model.RecordOperationAuditLog(user.Id, user.Role, auditContentEN("user.group_change", params), c.ClientIP(), "user.group_change", params, nil, &model.AuditRequestInfo{
+		Method: c.Request.Method, Route: c.FullPath(), Path: c.FullPath(), Status: c.Writer.Status(), Success: true,
+	}, c)
 }
 
 // recordLegacyGitHubBindingAudit records the outcome of a legacy GitHub binding

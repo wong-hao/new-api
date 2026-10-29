@@ -41,8 +41,12 @@ func init() {
 type CASProvider struct{}
 
 // A CAS sign-in carries the campus directory's own record of the account, so it
-// takes part in filling in missing profile fields (see BackfillsMissingProfile).
-var _ ProfileBackfillProvider = (*CASProvider)(nil)
+// takes part in filling in missing profile fields (see BackfillsMissingProfile)
+// and in naming the group the account belongs to (see AssertedGroup).
+var (
+	_ ProfileBackfillProvider = (*CASProvider)(nil)
+	_ GroupAssignmentProvider = (*CASProvider)(nil)
+)
 
 // CASValidation is the outcome of one successful CAS ticket validation,
 // carrying it from ExchangeToken to GetUserInfo.
@@ -252,6 +256,18 @@ func (p *CASProvider) GetProviderPrefix() string {
 // attribute names were configured therefore catches up on its next sign-in.
 func (p *CASProvider) BackfillsMissingProfile() bool {
 	return true
+}
+
+// AssertedGroup returns the department this assertion places the account in, or
+// "" when an administrator has not named a department attribute or the assertion
+// does not carry one. The setting is what switches automatic grouping on, so no
+// deployment groups its accounts by department without asking for it.
+func (p *CASProvider) AssertedGroup(token *OAuthToken) string {
+	attribute := system_setting.GetCASSettings().EffectiveGroupAttribute()
+	if attribute == "" || token == nil || token.CASValidation == nil {
+		return ""
+	}
+	return firstCASAttribute(token.CASValidation.Attributes, attribute)
 }
 
 // ProviderUserIDColumn returns the users-table column storing this provider's user ID.

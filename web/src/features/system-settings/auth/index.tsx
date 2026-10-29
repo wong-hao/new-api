@@ -57,6 +57,7 @@ const defaultAuthSettings: AuthSettings = {
   'cas.server_url': '',
   'cas.name_attribute': '',
   'cas.email_attribute': '',
+  'cas.group_attribute': '',
   LinuxDOOAuthEnabled: false,
   LinuxDOClientId: '',
   LinuxDOClientSecret: '',
