@@ -200,16 +200,17 @@ func (p *CASProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAut
 	emailCandidates := []string{settings.EffectiveEmailAttribute(), "email", "mail"}
 	displayName := firstCASAttribute(validation.Attributes, nameCandidates...)
 	email := firstCASAttribute(validation.Attributes, emailCandidates...)
-	// Which attributes a deployment releases, and under which names and shapes,
-	// is decided by the CAS server, so a field that does not arrive is the most
-	// likely configuration error and the one nothing else records. Report the
-	// candidate attributes and the shape of each one that did arrive: a name and
-	// a JSON kind, never a value.
+	// Which attributes a deployment releases, and in which shape, is decided by
+	// the CAS server, so a field that does not arrive is the most likely
+	// configuration error and the one nothing else records. Report the candidate
+	// names for the field, and alongside them the shape of every attribute that
+	// did arrive, so an attribute carrying something can be told from one the
+	// server left empty: names and JSON kinds, never a value.
 	if displayName == "" {
-		logger.LogError(ctx, common.LogText("[OAuth-CAS] Display name attribute not resolved; candidates: %s; CAS returned these attribute names: %s", casAttributeReport(validation.Attributes, nameCandidates...), strings.Join(casAttributeNames(validation.Attributes), ", ")))
+		logger.LogError(ctx, common.LogText("[OAuth-CAS] Display name attribute not resolved; candidates: %s; CAS returned: %s", casAttributeReport(validation.Attributes, nameCandidates...), casAttributeShapes(validation.Attributes)))
 	}
 	if email == "" {
-		logger.LogError(ctx, common.LogText("[OAuth-CAS] Email attribute not resolved; candidates: %s; CAS returned these attribute names: %s", casAttributeReport(validation.Attributes, emailCandidates...), strings.Join(casAttributeNames(validation.Attributes), ", ")))
+		logger.LogError(ctx, common.LogText("[OAuth-CAS] Email attribute not resolved; candidates: %s; CAS returned: %s", casAttributeReport(validation.Attributes, emailCandidates...), casAttributeShapes(validation.Attributes)))
 	}
 
 	logger.LogDebug(ctx, "[OAuth-CAS] GetUserInfo success: principal=%s", validation.Principal)
@@ -286,11 +287,19 @@ func casAttributeString(attributes map[string]any, name string) string {
 	return ""
 }
 
+// casShapeItemLimit and casShapeDepth bound how much of a value is described:
+// elements listed per collection, and how deep a nested collection is opened
+// before it is summarized by size. A CAS deployment can return a whole directory
+// object as one attribute, and that must not flood the log.
+const (
+	casShapeItemLimit = 4
+	casShapeDepth     = 2
+)
+
 // casAttributeReport describes the candidate attributes of one field without
 // revealing any of their values: for each of the names, whether it arrived and
-// the shape of the value if it did. Attribute values are PII, so only the name
-// and the JSON kind are ever written. A configured attribute name is usually one
-// of the fallbacks already in the list, so each name is described once.
+// the shape of the value if it did. A configured attribute name is usually one of
+// the fallbacks already in the list, so each name is described once.
 func casAttributeReport(attributes map[string]any, names ...string) string {
 	reported := make([]string, 0, len(names))
 	seen := make(map[string]bool, len(names))
@@ -304,24 +313,48 @@ func casAttributeReport(attributes map[string]any, names ...string) string {
 			reported = append(reported, name+"=absent")
 			continue
 		}
-		reported = append(reported, name+"="+casAttributeShape(value))
+		reported = append(reported, name+"="+casAttributeShape(value, casShapeDepth))
 	}
 	return strings.Join(reported, ", ")
 }
 
-// casAttributeShape names the JSON kind of one attribute value: the length of a
-// string or array, and the keys of an object. It is what tells a value this
-// provider cannot read from one the CAS server left empty.
-func casAttributeShape(value any) string {
+// casAttributeShapes describes every returned attribute the same way, sorted by
+// name, so the ones that carry something can be told from the ones the CAS server
+// left empty in a single line.
+func casAttributeShapes(attributes map[string]any) string {
+	shapes := make([]string, 0, len(attributes))
+	for name, value := range attributes {
+		shapes = append(shapes, name+"="+casAttributeShape(value, casShapeDepth))
+	}
+	slices.Sort(shapes)
+	return strings.Join(shapes, ", ")
+}
+
+// casAttributeShape describes one attribute value without revealing it: the JSON
+// kind and, for a string, array or object, how much of it there is. Attribute
+// values are PII, so no value is ever written — a test asserts that for strings,
+// objects and arrays alike.
+//
+// Describing a collection one level below the attribute is what tells a list of
+// strings this provider reads from a structure it cannot, such as an object that
+// holds the value under a key.
+func casAttributeShape(value any, depth int) string {
 	switch typed := value.(type) {
 	case nil:
 		return "null"
 	case string:
 		return fmt.Sprintf("string(%d)", len(typed))
 	case []any:
-		items := make([]string, 0, len(typed))
-		for _, item := range typed {
-			items = append(items, casAttributeShape(item))
+		if depth <= 0 {
+			return fmt.Sprintf("array(%d)", len(typed))
+		}
+		shown := min(len(typed), casShapeItemLimit)
+		items := make([]string, 0, shown+1)
+		for _, item := range typed[:shown] {
+			items = append(items, casAttributeShape(item, depth-1))
+		}
+		if len(typed) > shown {
+			items = append(items, fmt.Sprintf("+%d", len(typed)-shown))
 		}
 		return "array[" + strings.Join(items, ", ") + "]"
 	case map[string]any:
@@ -330,17 +363,11 @@ func casAttributeShape(value any) string {
 			keys = append(keys, key)
 		}
 		slices.Sort(keys)
+		if depth <= 0 || len(keys) > casShapeItemLimit {
+			return fmt.Sprintf("object(%d keys)", len(typed))
+		}
 		return "object{" + strings.Join(keys, ", ") + "}"
 	default:
 		return fmt.Sprintf("%T", typed)
 	}
-}
-
-func casAttributeNames(attributes map[string]any) []string {
-	names := make([]string, 0, len(attributes))
-	for name := range attributes {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	return names
 }

@@ -195,15 +195,27 @@ func TestCASAttributeReportDescribesShapesWithoutValues(t *testing.T) {
 	}
 
 	assert.Equal(t, "email=string(6), mail=string(0)", casAttributeReport(attributes, "email", "mail"))
-	assert.NotContains(t, casAttributeReport(attributes, "email", "mail"), "a@b.cn")
 	assert.Equal(t, "email=string(6), mail=string(0), uid=absent", casAttributeReport(attributes, "email", "mail", "uid"))
 	assert.Equal(t, "email=string(6), mail=string(0)", casAttributeReport(attributes, "email", "email", "mail"))
 	assert.Equal(t, "mobile=absent, uid=absent", casAttributeReport(attributes, "mobile", "uid"))
-	assert.Equal(t, "string(0)", casAttributeShape(attributes["mail"]))
-	assert.Equal(t, "object{deptCode, deptName}", casAttributeShape(attributes["dept"]))
-	assert.Equal(t, "array[object{groupId, groupName}]", casAttributeShape(attributes["groups"]))
-	assert.NotContains(t, casAttributeShape(attributes["dept"]), "网络与信息化处")
-	assert.Equal(t, "float64", casAttributeShape(float64(1)))
+
+	// Every attribute in one line, so the ones carrying something can be told
+	// from the ones the server left empty.
+	assert.Equal(t, "dept=object{deptCode, deptName}, email=string(6), groups=array[object{groupId, groupName}], mail=string(0)", casAttributeShapes(attributes))
+	assert.NotContains(t, casAttributeShapes(attributes), "a@b.cn")
+
+	assert.Equal(t, "string(0)", casAttributeShape(attributes["mail"], casShapeDepth))
+	assert.Equal(t, "object{deptCode, deptName}", casAttributeShape(attributes["dept"], casShapeDepth))
+	assert.Equal(t, "array[object{groupId, groupName}]", casAttributeShape(attributes["groups"], casShapeDepth))
+	assert.NotContains(t, casAttributeShape(attributes["dept"], casShapeDepth), "网络与信息化处")
+	assert.Equal(t, "float64", casAttributeShape(float64(1), casShapeDepth))
+
+	// Past the item limit, and below the depth limit, a collection is described
+	// by size instead of dumped.
+	assert.Equal(t, "array[string(1), string(1), string(1), string(1), +2]", casAttributeShape([]any{"a", "b", "c", "d", "e", "f"}, casShapeDepth))
+	assert.Equal(t, "object(5 keys)", casAttributeShape(map[string]any{"a": 1, "b": 1, "c": 1, "d": 1, "e": 1}, casShapeDepth))
+	assert.Equal(t, "array[object(1 keys)]", casAttributeShape([]any{map[string]any{"a": 1}}, 1))
+	assert.Equal(t, "array(3)", casAttributeShape([]any{"a", "b", "c"}, 0))
 }
 
 func TestCASProviderRejectsAuthenticationFailureWithoutLeakingCASDetail(t *testing.T) {
