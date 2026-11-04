@@ -8,7 +8,7 @@ DEV_POSTGRES_DB = new-api
 DEV_POSTGRES_USER = root
 DEV_SQLITE_PATH ?= one-api.db
 
-.PHONY: all build-web build-all-web start-api dev dev-api dev-api-rebuild dev-web reset-setup test
+.PHONY: all build-web build-all-web start-api dev dev-api dev-api-rebuild dev-web reset-setup docker-gc test
 
 all: build-all-web start-api
 
@@ -30,6 +30,29 @@ dev-api:
 dev-api-rebuild:
 	@echo "Rebuilding and starting api service (docker)..."
 	@docker compose -f $(DEV_COMPOSE_FILE) up -d --build $(DEV_API_SERVICE)
+
+# Building leaves residue even with the cache mounts: each rebuild turns the
+# previous image into a dangling one and BuildKit keeps the layer records of
+# both. Clearing that is cheap. Pruning the builder cache is not — it deletes the
+# cache mounts too (the Go and bun compile caches), so the next build recompiles
+# from zero: measured 3s -> 103s for Dockerfile.dev, 410s cold for Dockerfile.
+# So the builder cache is only pruned once it grows past GC_LIMIT_GB.
+GC_LIMIT_GB ?= 15
+docker-gc:
+	@echo "Removing dangling images..."
+	@docker image prune -f
+	@size=$$(docker system df --format '{{.Type}}|{{.Size}}' | awk -F'|' '$$1 == "Build Cache" { print $$2 }'); \
+	cache_mb=$$(printf '%s' "$$size" | awk '{ n = $$0; u = $$0; gsub(/[^0-9.]/, "", n); gsub(/[^A-Za-z]/, "", u); \
+		r = (u == "TB") ? 1048576 : (u == "GB") ? 1024 : (u == "KB") ? 1 / 1024 : 1; \
+		printf "%d", n * r }'); \
+	limit_mb=$$(( $(GC_LIMIT_GB) * 1024 )); \
+	echo "Build cache: $$size, limit $(GC_LIMIT_GB)GB"; \
+	if [ "$$cache_mb" -gt "$$limit_mb" ]; then \
+		echo "Over the limit: pruning the builder cache. The next build recompiles from zero."; \
+		docker builder prune -f; \
+	else \
+		echo "Under the limit: keeping the Go and bun caches warm."; \
+	fi
 
 dev-web:
 	@echo "Starting web frontend dev server..."
