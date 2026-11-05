@@ -710,7 +710,7 @@ func BackfillUserProfile(user *User, displayName string, email string) error {
 		return err
 	}
 	user.Email = email
-	return updateUserEmailCache(user.Id, email)
+	return PublishUserAuthCache(user.Id)
 }
 
 func (user *User) Insert(inviterId int) error {
