@@ -49,6 +49,8 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:?set SESSION_SECRET in .env}  # 多节点部署时每个节点必须使用同一个固定随机字符串；单节点也应设置且不可变更，否则重启后登录会话失效 (Fixed random string; must be identical on every node and must not change, or sessions break on restart)
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-false}  # true：启用 Secure Refresh Cookie 和严格 refresh/logout OriginGuard；false：关闭 OriginGuard，仅用于本地 HTTP (true: Secure cookie + strict refresh/logout OriginGuard; false: guard disabled for local HTTP only)
       - SESSION_COOKIE_TRUSTED_URL=${SESSION_COOKIE_TRUSTED_URL:-}  # Secure=true 时必须同时提供精确 HTTPS Origin；不是 relay CORS 白名单，不支持通配符/路径 (Required exact HTTPS origins when Secure=true; not a relay CORS allowlist, no wildcard/path)
+      - CRITICAL_RATE_LIMIT=200  # 敏感接口（登录、注册、重置密码、OAuth/CAS 回调等）共用同一个按 IP 计数的限额，默认 20 (Limit shared by the critical routes — login, registration, password reset, OAuth/CAS callbacks and the like — per client IP; default 20)
+      - CRITICAL_RATE_LIMIT_DURATION=300  # 上述限额的时间窗，单位秒，默认 1200 即 20 分钟 (Window in seconds for that limit; default 1200, i.e. 20 minutes)
 #      - TRUSTED_PROXIES=172.20.0.0/16  # 未配置时信任回环/RFC1918/fc00::/7 并告警，none 为严格模式，显式列表替代默认值 (Unset trusts loopback/RFC 1918/fc00::/7 with a warning; none trusts no proxies; an explicit list replaces defaults)
 #      - USER_SESSION_ACTIVE_LIMIT=50
 #      - USER_SESSION_ISSUANCE_LIMIT=100
