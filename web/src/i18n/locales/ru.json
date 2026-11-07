@@ -992,6 +992,7 @@
     "Cache pricing": "Цены кэша",
     "Cache ratio": "Коэффициент кэша",
     "Cache Read": "Чтение кэша",
+    "Cache Read (hits)": "Чтение кэша (попадания)",
     "Cache read price": "Цена чтения кэша",
     "Cache repeated prompt prefixes for cheaper, faster reuse": "Кэшировать повторяющиеся префиксы промптов для дешёвого и быстрого повторного использования",
     "Cache statistics are unavailable. Refresh to try again.": "Статистика кэша недоступна. Обновите её, чтобы повторить попытку.",

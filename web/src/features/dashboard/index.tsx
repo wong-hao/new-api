@@ -65,7 +65,6 @@ const LOG_STAT_CARD_FALLBACK_KEYS = [
   'quota',
   'tokens',
   'cache-read',
-  'cache-creation',
   'average-rpm',
   'average-tpm',
 ] as const
@@ -118,13 +117,14 @@ const LazyFlowCharts = lazy(() =>
 function LogStatCardsFallback() {
   return (
     <div className='overflow-hidden rounded-lg border'>
-      <div className='divide-border/60 grid min-w-0 grid-cols-2 divide-x sm:grid-cols-3 lg:grid-cols-7'>
+      <div className='divide-border/60 grid min-w-0 grid-cols-2 divide-x sm:grid-cols-3 lg:grid-cols-6'>
         {LOG_STAT_CARD_FALLBACK_KEYS.map((key, index) => (
           <div
             key={key}
             className={cn(
               'min-w-0 px-2.5 py-1.5 sm:px-3 sm:py-4 xl:px-4',
               index === LOG_STAT_CARD_FALLBACK_KEYS.length - 1 &&
+                LOG_STAT_CARD_FALLBACK_KEYS.length % 2 !== 0 &&
                 'col-span-2 sm:col-span-1'
             )}
           >

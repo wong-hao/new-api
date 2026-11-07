@@ -21,7 +21,6 @@ import {
   Coins,
   Layers,
   Download,
-  Upload,
   Gauge,
   Zap,
   Flame,
@@ -73,19 +72,11 @@ export function useModelStatCardsConfig(): StatCardConfig[] {
     },
     {
       key: 'cacheRead',
-      title: t('Cache Read'),
+      title: t('Cache Read (hits)'),
       description: t('Statistical tokens'),
       icon: Download,
       iconTone: 'chart-3',
       getValue: (stat) => stat?.cacheRead ?? 0,
-    },
-    {
-      key: 'cacheCreation',
-      title: t('Cache Write'),
-      description: t('Statistical tokens'),
-      icon: Upload,
-      iconTone: 'chart-5',
-      getValue: (stat) => stat?.cacheCreation ?? 0,
     },
     {
       key: 'avgRpm',

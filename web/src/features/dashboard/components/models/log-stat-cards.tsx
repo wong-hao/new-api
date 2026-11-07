@@ -118,7 +118,6 @@ export function LogStatCards(props: LogStatCardsProps) {
     quota: stats?.totalQuota ?? 0,
     tpm: stats?.totalTokens ?? 0,
     cacheRead: stats?.totalCacheReadTokens ?? 0,
-    cacheCreation: stats?.totalCacheCreationTokens ?? 0,
   }
 
   const items = statCardsConfig.map((config) => {
@@ -145,7 +144,7 @@ export function LogStatCards(props: LogStatCardsProps) {
 
   return (
     <div className='overflow-hidden rounded-lg border'>
-      <div className='divide-border/60 grid min-w-0 grid-cols-2 divide-x sm:grid-cols-3 lg:grid-cols-7'>
+      <div className='divide-border/60 grid min-w-0 grid-cols-2 divide-x sm:grid-cols-3 lg:grid-cols-6'>
         {items.map((it, idx) => {
           const Icon = it.icon
           let valueContent

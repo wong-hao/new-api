@@ -992,6 +992,7 @@
     "Cache pricing": "Giá bộ nhớ đệm",
     "Cache ratio": "Tỷ lệ bộ nhớ đệm",
     "Cache Read": "Đọc bộ nhớ đệm",
+    "Cache Read (hits)": "Đọc bộ nhớ đệm (lượt trúng)",
     "Cache read price": "Giá đọc cache",
     "Cache repeated prompt prefixes for cheaper, faster reuse": "Lưu cache phần đầu lời nhắc lặp lại để tái sử dụng nhanh và rẻ hơn",
     "Cache statistics are unavailable. Refresh to try again.": "Thống kê bộ nhớ đệm hiện không khả dụng. Hãy làm mới để thử lại.",

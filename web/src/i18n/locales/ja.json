@@ -992,6 +992,7 @@
     "Cache pricing": "キャッシュ料金",
     "Cache ratio": "キャッシュ倍率",
     "Cache Read": "キャッシュ読み取り",
+    "Cache Read (hits)": "キャッシュ読み取り（ヒット）",
     "Cache read price": "キャッシュ読み取り価格",
     "Cache repeated prompt prefixes for cheaper, faster reuse": "繰り返しのプロンプト先頭部分をキャッシュし、低コスト・高速に再利用",
     "Cache statistics are unavailable. Refresh to try again.": "キャッシュ統計を取得できません。更新して再試行してください。",
