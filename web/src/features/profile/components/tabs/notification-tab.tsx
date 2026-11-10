@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Bell, Loader2, Mail, Server, Webhook } from 'lucide-react'
+import { Bell, Loader2, Mail, MessageSquare, Server, Webhook } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -42,8 +42,12 @@ import { handleServerError } from '@/lib/handle-server-error'
 import { ROLE } from '@/lib/roles'
 
 import { updateUserSettings } from '../../api'
-import { NOTIFICATION_METHODS } from '../../constants'
-import { normalizeUserSettings } from '../../lib/user-settings'
+import { OA_CHANNELS } from '../../constants'
+import {
+  availableNotificationMethods,
+  normalizeOAChannels,
+  normalizeUserSettings,
+} from '../../lib/user-settings'
 import type { UserProfile, NotifyType } from '../../types'
 
 const NOTIFICATION_ICONS: Record<NotifyType, typeof Mail> = {
@@ -51,6 +55,7 @@ const NOTIFICATION_ICONS: Record<NotifyType, typeof Mail> = {
   webhook: Webhook,
   bark: Bell,
   gotify: Server,
+  oa: MessageSquare,
 }
 
 // ============================================================================
@@ -123,6 +128,9 @@ export function NotificationTab({
   }
 
   const notifyType = settings.notify_type
+  const selectedOAChannels = settings.oa_channels
+    ? settings.oa_channels.split(',')
+    : []
   // Switches the user never chose: reminders stay on, and root alone gets
   // channel notifications.
   const quotaWarningEnabled = settings.quota_warning_enabled ?? true
@@ -157,7 +165,7 @@ export function NotificationTab({
               spacing={2}
               className='grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3'
             >
-              {NOTIFICATION_METHODS.map((method) => {
+              {availableNotificationMethods().map((method) => {
                 const Icon = NOTIFICATION_ICONS[method.value]
                 return (
                   <ToggleGroupItem
@@ -315,6 +323,40 @@ export function NotificationTab({
                 </p>
               </div>
             </>
+          )}
+
+          {/* Campus message center (OA) Settings */}
+          {notifyType === 'oa' && (
+            <div className='space-y-1.5'>
+              <Label>{t('Channels')}</Label>
+              <ToggleGroup
+                multiple
+                value={selectedOAChannels}
+                onValueChange={(value) =>
+                  updateField('oa_channels', normalizeOAChannels(value.join(',')))
+                }
+                aria-label={t('Channels')}
+                variant='outline'
+                size='lg'
+                spacing={2}
+                className='grid w-full grid-cols-2 gap-2 sm:gap-3'
+              >
+                {OA_CHANNELS.map((channel) => (
+                  <ToggleGroupItem
+                    key={channel.value}
+                    value={channel.value}
+                    className='h-auto min-h-10 w-full px-3 py-2 text-sm'
+                  >
+                    {t(channel.label)}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <p className='text-muted-foreground text-xs'>
+                {t(
+                  'Messages are delivered to the campus account you signed in with. Leave every channel unselected to use WeChat and DingTalk.'
+                )}
+              </p>
+            </div>
           )}
 
           {/* Notifications to receive */}

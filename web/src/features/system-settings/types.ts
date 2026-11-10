@@ -368,6 +368,10 @@ export type OperationsSettings = {
   DefaultCollapseSidebar: boolean
   DemoSiteEnabled: boolean
   SelfUseModeEnabled: boolean
+  'msgcenter.enabled': boolean
+  'msgcenter.base_url': string
+  'msgcenter.app_id': string
+  'msgcenter.token': string
   QuotaRemindEnabled: boolean
   QuotaRemindThreshold: string
   EmailProvider: 'smtp' | 'resend'

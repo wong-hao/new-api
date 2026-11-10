@@ -11,6 +11,7 @@ const ContentValueParam = "{{value}}"
 
 const (
 	NotifyTypeQuotaExceed   = "quota_exceed"
+	NotifyTypeQuotaEmpty    = "quota_empty"
 	NotifyTypeChannelUpdate = "channel_update"
 	NotifyTypeChannelTest   = "channel_test"
 )

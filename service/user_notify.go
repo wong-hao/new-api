@@ -65,11 +65,22 @@ func notifyAdmins(notifyType string, receives func(role int, setting dto.UserSet
 	return sentCount
 }
 
-func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data dto.Notify) error {
-	notifyType := userSetting.NotifyType
-	if notifyType == "" {
-		notifyType = dto.NotifyTypeEmail
+// deliveryMethod picks the method a notice is delivered by. A user who never chose
+// falls back to the message center once the site has configured one, because a campus
+// account reaches the user where an email address may be unused; a site without a
+// configured center keeps email as the default.
+func deliveryMethod(userSetting dto.UserSetting) string {
+	if userSetting.NotifyType != "" {
+		return userSetting.NotifyType
 	}
+	if system_setting.GetMessageCenterSettings().IsConfigured() {
+		return dto.NotifyTypeOA
+	}
+	return dto.NotifyTypeEmail
+}
+
+func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data dto.Notify) error {
+	notifyType := deliveryMethod(userSetting)
 
 	// Check notification limit
 	canSend, err := CheckNotificationLimit(userId, data.Type)
@@ -118,6 +129,8 @@ func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data 
 			return nil
 		}
 		return sendGotifyNotify(gotifyUrl, gotifyToken, userSetting.GotifyPriority, data)
+	case dto.NotifyTypeOA:
+		return sendOANotify(userId, userSetting, data)
 	}
 	return nil
 }

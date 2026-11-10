@@ -92,7 +92,16 @@ const (
 	MsgNotifySubscriptionQuotaLowTitle = "notify.subscription_quota_low_title"
 	MsgNotifyQuotaLowBark              = "notify.quota_low_bark"
 	MsgNotifyQuotaLowGotify            = "notify.quota_low_gotify"
+	MsgNotifyQuotaLowOA                = "notify.quota_low_oa"
 	MsgNotifyQuotaLowEmail             = "notify.quota_low_email"
+)
+
+// Empty-wallet notices: a request was rejected because the balance could not
+// cover its pre-consume, in the recipient's saved language
+const (
+	MsgNotifyQuotaEmptyTitle = "notify.quota_empty_title"
+	MsgNotifyQuotaEmptyText  = "notify.quota_empty_text"
+	MsgNotifyQuotaEmptyEmail = "notify.quota_empty_email"
 )
 
 // Channel notices sent to administrators who receive them and to model update

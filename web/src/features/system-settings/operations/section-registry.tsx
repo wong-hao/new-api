@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { SystemBehaviorSection } from '../general/system-behavior-section'
 import { EmailSettingsSection } from '../integrations/email-settings-section'
+import { MessageCenterSettingsSection } from '../integrations/message-center-settings-section'
 import { MonitoringSettingsSection } from '../integrations/monitoring-settings-section'
 import { WorkerSettingsSection } from '../integrations/worker-settings-section'
 import { LogSettingsSection } from '../maintenance/log-settings-section'
@@ -79,6 +80,20 @@ const OPERATIONS_SECTIONS = [
           SMTPStartTLSEnabled: settings.SMTPStartTLSEnabled,
           SMTPInsecureSkipVerify: settings.SMTPInsecureSkipVerify,
           SMTPForceAuthLogin: settings.SMTPForceAuthLogin,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'message-center',
+    titleKey: 'Message Center',
+    build: (settings: OperationsSettings) => (
+      <MessageCenterSettingsSection
+        defaultValues={{
+          enabled: settings['msgcenter.enabled'] ?? false,
+          baseUrl: settings['msgcenter.base_url'] ?? '',
+          appId: settings['msgcenter.app_id'] ?? '',
+          token: settings['msgcenter.token'] ?? '',
         }}
       />
     ),

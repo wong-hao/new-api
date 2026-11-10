@@ -74,7 +74,11 @@ notify.quota_low_title: "您的额度即将用尽"
 notify.subscription_quota_low_title: "您的订阅额度即将用尽"
 notify.quota_low_bark: "{{.Prompt}}，剩余额度：{{.Quota}}，请及时充值"
 notify.quota_low_gotify: "{{.Prompt}}，当前剩余额度为 {{.Quota}}，请及时充值。"
+notify.quota_low_oa: "{{.Prompt}}，当前剩余额度为 {{.Quota}}，为了不影响您的使用，请及时充值。充值链接：{{.Link}}"
 notify.quota_low_email: "{{.Prompt}}，当前剩余额度为 {{.Quota}}，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='{{.Link}}'>{{.Link}}</a>"
+notify.quota_empty_title: "余额为 0，请求未扣费成功"
+notify.quota_empty_text: "您的余额为 0，调用模型 {{.Model}} 的请求因余额不足未能完成。请充值后重试：{{.Link}}"
+notify.quota_empty_email: "您的余额为 0，调用模型 {{.Model}} 的请求因余额不足未能完成，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='{{.Link}}'>{{.Link}}</a>"
 
 # Channel notices sent to administrators who receive them and to model update watchers
 channel.notify_disabled_subject: "通道「{{.Name}}」（#{{.Id}}）已被禁用"

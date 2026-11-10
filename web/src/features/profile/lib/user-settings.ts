@@ -16,9 +16,45 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { NOTIFICATION_METHODS } from '../constants'
+import { readCachedStatus } from '@/lib/status-query'
+
+import { NOTIFICATION_METHODS, OA_CHANNELS } from '../constants'
 import type { NotifyType, UpdateUserSettingsRequest } from '../types'
 import { parseUserSettings } from './format'
+
+/** Whether the site has a campus message center that can deliver a notice at all. */
+export function messageCenterConfigured(): boolean {
+  return readCachedStatus()?.msgcenter_configured === true
+}
+
+/** The method a user who never chose is served by. */
+export function defaultNotifyType(): NotifyType {
+  return messageCenterConfigured() ? 'oa' : 'email'
+}
+
+/**
+ * The methods a user may pick. The message center is offered only once the site has
+ * configured one: an unconfigured center would take the choice and deliver nothing.
+ */
+export function availableNotificationMethods(): readonly {
+  value: NotifyType
+  label: string
+}[] {
+  return messageCenterConfigured()
+    ? NOTIFICATION_METHODS
+    : NOTIFICATION_METHODS.filter((method) => method.value !== 'oa')
+}
+
+/**
+ * Channels of the campus message center in the order they are saved, with
+ * anything the center cannot reach a campus account by dropped. An empty result
+ * means the server's default channels.
+ */
+export function normalizeOAChannels(configured: string): string {
+  return OA_CHANNELS.filter((channel) => configured.split(',').includes(channel.value))
+    .map((channel) => channel.value)
+    .join(',')
+}
 
 /** Switches whose absence means "never chosen", which the server resolves */
 type DefaultedSwitch = 'quota_warning_enabled' | 'channel_notify_enabled'
@@ -38,8 +74,9 @@ export function normalizeUserSettings(
 ): NormalizedUserSettings {
   const parsed = parseUserSettings(setting)
   const notifyType =
-    NOTIFICATION_METHODS.find((method) => method.value === parsed.notify_type)
-      ?.value ?? 'email'
+    availableNotificationMethods().find(
+      (method) => method.value === parsed.notify_type
+    )?.value ?? defaultNotifyType()
   return {
     notify_type: notifyType,
     quota_warning_threshold: parsed.quota_warning_threshold ?? 0,
@@ -51,6 +88,7 @@ export function normalizeUserSettings(
     gotify_url: parsed.gotify_url ?? '',
     gotify_token: parsed.gotify_token ?? '',
     gotify_priority: parsed.gotify_priority ?? 5,
+    oa_channels: normalizeOAChannels(parsed.oa_channels ?? ''),
     accept_unset_model_ratio_model:
       parsed.accept_unset_model_ratio_model || false,
     record_ip_log: parsed.record_ip_log || false,

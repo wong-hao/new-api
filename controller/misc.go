@@ -134,6 +134,11 @@ func GetStatus(c *gin.Context) {
 		"log_max_range_days":        operation_setting.GetLogSetting().MaxRangeDays,
 		"quota_remind_enabled":      common.QuotaRemindEnabled,
 		"quota_remind_threshold":    common.QuotaRemindThreshold,
+		// msgcenter_configured says whether the campus message center can deliver a
+		// notice at all. It decides the console's default notification method and
+		// whether the message center is offered as one; the credentials themselves
+		// stay in the administrator-only options, never in this public payload.
+		"msgcenter_configured": system_setting.GetMessageCenterSettings().IsConfigured(),
 	}
 
 	// 根据启用状态注入可选内容

@@ -552,14 +552,31 @@ func quotaReminderDue(userSetting dto.UserSetting, before int64, after int64) bo
 // Bark and Gotify get plain text; email and webhook get HTML with the top-up
 // link. values stay in the notify payload for webhook receivers.
 func quotaNotifyContent(lang string, notifyType string, prompt string, remaining string) (string, []any) {
+	topUpLink := PaymentReturnURL("/wallet")
 	switch notifyType {
 	case dto.NotifyTypeBark:
 		// Bark推送使用简短文本，不支持HTML
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowBark, map[string]any{"Prompt": prompt, "Quota": remaining}), []any{prompt, remaining}
 	case dto.NotifyTypeGotify:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowGotify, map[string]any{"Prompt": prompt, "Quota": remaining}), []any{prompt, remaining}
+	case dto.NotifyTypeOA:
+		// 消息中心推送纯文本，链接直接写 URL
+		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowOA, map[string]any{"Prompt": prompt, "Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink}
 	default:
-		topUpLink := PaymentReturnURL("/wallet")
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowEmail, map[string]any{"Prompt": prompt, "Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink, topUpLink}
+	}
+}
+
+// quotaEmptyNotifyContent renders the notice for a request that was rejected
+// because the balance could not cover its pre-consume. The message center, Bark
+// and Gotify receive plain text; email and webhook receive HTML with the top-up
+// link. values keep the top-up link in the notify payload for webhook receivers.
+func quotaEmptyNotifyContent(lang string, notifyType string, modelName string, topUpLink string) (string, []any) {
+	values := []any{modelName, topUpLink, topUpLink}
+	switch notifyType {
+	case dto.NotifyTypeBark, dto.NotifyTypeGotify, dto.NotifyTypeOA:
+		return i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyText, map[string]any{"Model": modelName, "Link": topUpLink}), values
+	default:
+		return i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyEmail, map[string]any{"Model": modelName, "Link": topUpLink}), values
 	}
 }

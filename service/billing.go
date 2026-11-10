@@ -6,9 +6,13 @@ import (
 	"net/http"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,7 +25,15 @@ const (
 // 会话存储在 relayInfo.Billing 上，供后续 Settle / Refund 使用。
 // 会话已存在时（任务重试换到另一个渠道）把预扣补到 preConsumedQuota，
 // 和首次预扣一样必须由余额覆盖。
-func PreConsumeBilling(c *gin.Context, preConsumedQuota int, relayInfo *relaycommon.RelayInfo) *types.NewAPIError {
+//
+// 这是预扣费的唯一入口，所以「余额不足导致扣费失败」的提醒也挂在它的出口上：
+// 每个出口都由 defer 检查一次，只在请求最终被拒时提醒，中间失败（例如
+// wallet_first 回退订阅后成功）不会误报。
+func PreConsumeBilling(c *gin.Context, preConsumedQuota int, relayInfo *relaycommon.RelayInfo) (apiErr *types.NewAPIError) {
+	defer func() {
+		notifyEmptyWalletRejection(apiErr, relayInfo)
+	}()
+
 	if relayInfo != nil && relayInfo.QuotaClamp != nil {
 		return types.NewErrorWithStatusCode(
 			relayInfo.QuotaClamp,
@@ -54,6 +66,45 @@ func PreConsumeBilling(c *gin.Context, preConsumedQuota int, relayInfo *relaycom
 	}
 	relayInfo.Billing = session
 	return nil
+}
+
+// notifyEmptyWalletRejection reminds a user whose balance is 0 that their request was
+// rejected for lack of balance. A rejected request is the one case the low-quota
+// reminder in quota.go cannot cover: that one fires after a charge has already
+// succeeded, so a user with no balance to charge never hears from it.
+//
+// The reminder goes out through the recipient's own notification method, and it is not
+// gated on the low-balance switches: those ask for at most one notice when a balance
+// crosses a threshold, while this one reports a request that already failed, so a user
+// who chose the message center has to receive it there. Its own notification type gives
+// it its own limit budget, so a low-balance reminder cannot use up the one that
+// reaches the user whose key has stopped working. It runs in the background and never
+// affects the billing result or the error the client receives.
+func notifyEmptyWalletRejection(apiErr *types.NewAPIError, relayInfo *relaycommon.RelayInfo) {
+	if apiErr == nil || relayInfo == nil || relayInfo.IsPlayground || relayInfo.UserId == 0 {
+		return
+	}
+	if apiErr.GetErrorCode() != types.ErrorCodeInsufficientUserQuota {
+		return
+	}
+
+	gopool.Go(func() {
+		balance, err := model.GetUserQuota(relayInfo.UserId, false)
+		if err != nil {
+			common.SysError(common.LogText("failed to read the quota of user %d for the empty-balance notice: %s", relayInfo.UserId, err.Error()))
+			return
+		}
+		if balance > 0 {
+			return
+		}
+
+		lang := relayInfo.UserSetting.Language
+		title := i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyTitle)
+		content, values := quotaEmptyNotifyContent(lang, relayInfo.UserSetting.NotifyType, relayInfo.OriginModelName, PaymentReturnURL("/wallet"))
+		if err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaEmpty, title, content, values)); err != nil {
+			common.SysError(common.LogText("failed to send the empty-balance notice to user %d: %s", relayInfo.UserId, err.Error()))
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------
