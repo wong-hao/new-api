@@ -42,9 +42,9 @@ import { handleServerError } from '@/lib/handle-server-error'
 import { ROLE } from '@/lib/roles'
 
 import { updateUserSettings } from '../../api'
-import { OA_CHANNELS } from '../../constants'
 import {
   availableNotificationMethods,
+  availableOAChannels,
   normalizeOAChannels,
   normalizeUserSettings,
 } from '../../lib/user-settings'
@@ -341,7 +341,7 @@ export function NotificationTab({
                 spacing={2}
                 className='grid w-full grid-cols-2 gap-2 sm:gap-3'
               >
-                {OA_CHANNELS.map((channel) => (
+                {availableOAChannels().map((channel) => (
                   <ToggleGroupItem
                     key={channel.value}
                     value={channel.value}

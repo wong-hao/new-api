@@ -34,6 +34,8 @@ const defaultOperationsSettings: OperationsSettings = {
   'msgcenter.base_url': '',
   'msgcenter.app_id': '',
   'msgcenter.token': '',
+  'msgcenter.channels': '',
+  'msgcenter.module_id': '',
   QuotaRemindEnabled: true,
   QuotaRemindThreshold: '',
   EmailProvider: 'smtp',

@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/msgcenter"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -263,20 +264,22 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 		name     string
 		enabled  bool
 		casId    string
+		channels string
 		setting  dto.UserSetting
 		wantSent bool
 	}{
 		{
-			name:     "chosen method without choosing channels uses the default channels",
+			name:     "chosen method without choosing channels uses the site's channels",
 			enabled:  true,
 			casId:    "20200001",
 			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeOA},
 			wantSent: true,
 		},
 		{
-			name:     "only the channels the center reaches a campus account by are kept",
+			name:     "a user narrows the site's channels down to one of them",
 			enabled:  true,
 			casId:    "20200002",
+			channels: "wechat,dingding",
 			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeOA, OAChannels: "dingding,email"},
 			wantSent: true,
 		},
@@ -300,7 +303,7 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 			sent = sent[:0]
 			mutex.Unlock()
 
-			*settings = system_setting.MessageCenterSettings{Enabled: tc.enabled, BaseURL: server.URL, AppID: "app-1", Token: "token-1"}
+			*settings = system_setting.MessageCenterSettings{Enabled: tc.enabled, BaseURL: server.URL, AppID: "app-1", Token: "token-1", Channels: tc.channels}
 			user := &model.User{Username: "oa-" + tc.casId, CasId: tc.casId, Status: common.UserStatusEnabled, AffCode: "oa-" + tc.casId}
 			require.NoError(t, database.Create(user).Error)
 
@@ -395,6 +398,142 @@ func TestRejectedRequestWithEmptyBalanceNotifiesTheUser(t *testing.T) {
 	require.NotNil(t, apiErr)
 	assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
 	require.Never(t, func() bool { return countReceived() > 1 }, 300*time.Millisecond, 50*time.Millisecond)
+}
+
+// The message center is told exactly which channels to send through: the site's own
+// list, narrowed by the user's choice, minus any channel the site cannot fill in (EIP
+// needs a message source). A channel the centre cannot fill in fails the whole message.
+func TestMessageChannelsFollowTheSiteAndTheUsersChoice(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		settings system_setting.MessageCenterSettings
+		chosen   string
+		want     []string
+	}{
+		{
+			name: "a site that named no channel sends through wechat",
+			want: []string{msgcenter.ChannelWeChat},
+		},
+		{
+			name:     "the site's channels are sent in the order they are declared",
+			settings: system_setting.MessageCenterSettings{Channels: "eip,wechat", ModuleID: "ANNOUNCEMENT"},
+			want:     []string{msgcenter.ChannelWeChat, msgcenter.ChannelEIP},
+		},
+		{
+			name:     "a channel the vocabulary does not know is dropped",
+			settings: system_setting.MessageCenterSettings{Channels: "sms,wechat"},
+			want:     []string{msgcenter.ChannelWeChat},
+		},
+		{
+			name:     "the user narrows the site's channels down",
+			settings: system_setting.MessageCenterSettings{Channels: "wechat,dingding"},
+			chosen:   "dingding",
+			want:     []string{msgcenter.ChannelDingTalk},
+		},
+		{
+			name:     "a user choice the site does not send through leaves nothing",
+			settings: system_setting.MessageCenterSettings{Channels: "wechat"},
+			chosen:   "dingding",
+			want:     []string{},
+		},
+		{
+			name:     "eip without a message source is left out",
+			settings: system_setting.MessageCenterSettings{Channels: "wechat,eip"},
+			want:     []string{msgcenter.ChannelWeChat},
+		},
+		{
+			name:     "eip with a message source is kept",
+			settings: system_setting.MessageCenterSettings{Channels: "wechat,eip", ModuleID: "JOIN_APP"},
+			want:     []string{msgcenter.ChannelWeChat, msgcenter.ChannelEIP},
+		},
+		{
+			name:     "a message source outside the vocabulary is refused",
+			settings: system_setting.MessageCenterSettings{Channels: "eip", ModuleID: "SOMETHING_ELSE"},
+			want:     []string{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			channels, _ := messageChannels(&tc.settings, tc.chosen, 1)
+			assert.Equal(t, tc.want, channels)
+		})
+	}
+}
+
+// Every channel the message center offers carries a required field of its own, and a
+// message missing one is rejected as a whole, so the sender fills in the ones its
+// channel list needs.
+func TestOANotifyFillsInEachChannelsRequiredField(t *testing.T) {
+	database := newNotifyTestDB(t)
+
+	settings := system_setting.GetMessageCenterSettings()
+	previousSettings := *settings
+	t.Cleanup(func() { *settings = previousSettings })
+
+	var mutex sync.Mutex
+	var sent []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseForm())
+		var payload map[string]any
+		require.NoError(t, common.UnmarshalJsonStr(r.PostFormValue("msgData"), &payload))
+		mutex.Lock()
+		sent = append(sent, payload)
+		mutex.Unlock()
+		_, _ = w.Write([]byte(`{"code":200,"message":"成功","data":"msg-3"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	for index, tc := range []struct {
+		name     string
+		channels string
+		moduleID string
+		want     map[string]any
+	}{
+		{
+			name:     "wechat carries a message type",
+			channels: "wechat",
+			want:     map[string]any{"channels": "wechat", "wechatMsgType": "text"},
+		},
+		{
+			name:     "dingding carries a message type",
+			channels: "dingding",
+			want:     map[string]any{"channels": "dingding", "dingMsgType": "text"},
+		},
+		{
+			name:     "eip carries its message source",
+			channels: "eip",
+			moduleID: "ANNOUNCEMENT",
+			want:     map[string]any{"channels": "eip", "moduleID": "ANNOUNCEMENT"},
+		},
+		{
+			name:     "an eip channel the site cannot fill in is left out",
+			channels: "wechat,eip",
+			want:     map[string]any{"channels": "wechat", "wechatMsgType": "text"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mutex.Lock()
+			sent = nil
+			mutex.Unlock()
+
+			*settings = system_setting.MessageCenterSettings{
+				Enabled: true, BaseURL: server.URL, AppID: "app-1", Token: "token-1",
+				Channels: tc.channels, ModuleID: tc.moduleID,
+			}
+			user := &model.User{
+				Username: fmt.Sprintf("channels-%d", index), CasId: "20200010",
+				Status: common.UserStatusEnabled, AffCode: fmt.Sprintf("channels-%d", index),
+			}
+			require.NoError(t, database.Create(user).Error)
+
+			require.NoError(t, NotifyUser(user.Id, "", dto.UserSetting{NotifyType: dto.NotifyTypeOA},
+				dto.NewNotify(dto.NotifyTypeQuotaEmpty, "标题", "正文", nil)))
+
+			require.Len(t, sent, 1)
+			for field, want := range tc.want {
+				assert.Equal(t, want, sent[0][field], field)
+			}
+		})
+	}
 }
 
 // A user who chose the message center has to hear a rejected request there: the

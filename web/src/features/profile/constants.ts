@@ -30,12 +30,3 @@ export const NOTIFICATION_METHODS = [
   { value: 'gotify' as const, label: 'Gotify' },
   { value: 'oa' as const, label: 'OA Message' },
 ] as const
-
-/**
- * Channels the campus message center reaches a recipient by, in the order they
- * are saved in. Each one addresses the campus account the user signed in with.
- */
-export const OA_CHANNELS = [
-  { value: 'wechat', label: 'WeChat' },
-  { value: 'dingding', label: 'DingTalk' },
-] as const

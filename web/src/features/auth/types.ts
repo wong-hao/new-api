@@ -195,6 +195,8 @@ export interface SystemStatus {
   quota_remind_threshold?: number
   /** Whether the campus message center is configured and can deliver notices */
   msgcenter_configured?: boolean
+  /** Channels the campus message center sends through, comma separated */
+  msgcenter_channels?: string
   [key: string]: unknown
 }
 

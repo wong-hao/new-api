@@ -16,9 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { MESSAGE_CENTER_CHANNELS } from '@/lib/msgcenter'
 import { readCachedStatus } from '@/lib/status-query'
 
-import { NOTIFICATION_METHODS, OA_CHANNELS } from '../constants'
+import { NOTIFICATION_METHODS } from '../constants'
 import type { NotifyType, UpdateUserSettingsRequest } from '../types'
 import { parseUserSettings } from './format'
 
@@ -46,13 +47,30 @@ export function availableNotificationMethods(): readonly {
 }
 
 /**
- * Channels of the campus message center in the order they are saved, with
- * anything the center cannot reach a campus account by dropped. An empty result
- * means the server's default channels.
+ * Channels of the campus message center this site sends through, in the order the site
+ * sends them. Only those are offered: the centre rejects a message naming a channel the
+ * application is not authorized for, and the site has already established which ones it
+ * is.
+ */
+export function availableOAChannels(): readonly {
+  value: string
+  label: string
+}[] {
+  const configured = readCachedStatus()?.msgcenter_channels
+  if (typeof configured !== 'string') return []
+  return MESSAGE_CENTER_CHANNELS.filter((channel) =>
+    configured.split(',').includes(channel.value)
+  )
+}
+
+/**
+ * The channels a user picked, in the order the site sends them, out of the ones the
+ * site offers. An empty result means the site's own channels.
  */
 export function normalizeOAChannels(configured: string): string {
-  return OA_CHANNELS.filter((channel) => configured.split(',').includes(channel.value))
+  return availableOAChannels()
     .map((channel) => channel.value)
+    .filter((channel) => configured.split(',').includes(channel))
     .join(',')
 }
 

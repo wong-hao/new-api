@@ -94,6 +94,8 @@ const OPERATIONS_SECTIONS = [
           baseUrl: settings['msgcenter.base_url'] ?? '',
           appId: settings['msgcenter.app_id'] ?? '',
           token: settings['msgcenter.token'] ?? '',
+          channels: settings['msgcenter.channels'] ?? '',
+          moduleId: settings['msgcenter.module_id'] ?? '',
         }}
       />
     ),

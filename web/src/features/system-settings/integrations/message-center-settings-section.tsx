@@ -17,11 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
+import { MultiSelect } from '@/components/multi-select'
 import { PasswordInput } from '@/components/password-input'
 import {
   Form,
@@ -33,7 +35,19 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import {
+  MESSAGE_CENTER_CHANNELS,
+  MESSAGE_CENTER_MODULE_IDS,
+} from '@/lib/msgcenter'
 
 import {
   SettingsForm,
@@ -49,6 +63,10 @@ const schema = z.object({
   baseUrl: z.string(),
   appId: z.string(),
   token: z.string(),
+  /** Channels to send through, comma separated */
+  channels: z.string(),
+  /** Message source the EIP channel requires */
+  moduleId: z.string(),
 })
 
 // NOTE: react-hook-form resolver uses the schema input type
@@ -57,12 +75,7 @@ type Values = z.input<typeof schema>
 export function MessageCenterSettingsSection({
   defaultValues,
 }: {
-  defaultValues: {
-    enabled: boolean
-    baseUrl: string
-    appId: string
-    token: string
-  }
+  defaultValues: Values
 }) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
@@ -74,11 +87,38 @@ export function MessageCenterSettingsSection({
       baseUrl: defaultValues.baseUrl ?? '',
       appId: defaultValues.appId ?? '',
       token: defaultValues.token ?? '',
+      channels: defaultValues.channels ?? '',
+      moduleId: defaultValues.moduleId ?? '',
     },
   })
 
   const { isDirty, isSubmitting } = form.formState
   const enabled = form.watch('enabled')
+  const selected = (form.watch('channels') ?? '')
+    .split(',')
+    .filter((channel) => channel !== '')
+  const moduleId = form.watch('moduleId') ?? ''
+  // An EIP message carries a source; without one the centre rejects the message, so a
+  // site that cannot name one may not be saved.
+  const eip = selected.includes('eip')
+  const canSave = selected.length > 0 && (!eip || moduleId !== '')
+
+  const channelOptions = useMemo(
+    () =>
+      MESSAGE_CENTER_CHANNELS.map((channel) => ({
+        value: channel.value,
+        label: t(channel.label),
+      })),
+    [t]
+  )
+  const moduleIdOptions = useMemo(
+    () =>
+      MESSAGE_CENTER_MODULE_IDS.map((module) => ({
+        value: module.value,
+        label: t(module.label),
+      })),
+    [t]
+  )
 
   async function onSubmit(values: Values) {
     const updates: Array<{ key: string; value: string }> = []
@@ -107,6 +147,18 @@ export function MessageCenterSettingsSection({
         value: String(values.token || ''),
       })
     }
+    if ((values.channels || '') !== (defaultValues.channels || '')) {
+      updates.push({
+        key: 'msgcenter.channels',
+        value: String(values.channels || ''),
+      })
+    }
+    if ((values.moduleId || '') !== (defaultValues.moduleId || '')) {
+      updates.push({
+        key: 'msgcenter.module_id',
+        value: String(values.moduleId || ''),
+      })
+    }
 
     if (updates.length === 0) {
       toast.info(t('No changes to save'))
@@ -127,7 +179,7 @@ export function MessageCenterSettingsSection({
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending || isSubmitting}
-            isSaveDisabled={!isDirty}
+            isSaveDisabled={!isDirty || updateOption.isPending || !canSave}
             saveLabel='Save message center settings'
           />
           <FormField
@@ -171,9 +223,7 @@ export function MessageCenterSettingsSection({
                       />
                     </FormControl>
                     <FormDescription>
-                      {t(
-                        'Address of the message center, including its port'
-                      )}
+                      {t('Address of the message center, including its port')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -215,6 +265,82 @@ export function MessageCenterSettingsSection({
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name='channels'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Channels to send through')}</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={channelOptions}
+                        selected={(field.value ?? '').split(',').filter(Boolean)}
+                        onChange={(values) =>
+                          // Save them in the order they are sent, not the order the
+                          // administrator happened to click them in.
+                          field.onChange(
+                            MESSAGE_CENTER_CHANNELS.filter((channel) =>
+                              values.includes(channel.value)
+                            )
+                              .map((channel) => channel.value)
+                              .join(',')
+                          )
+                        }
+                        placeholder={t('Select at least one channel')}
+                        disabled={updateOption.isPending || isSubmitting}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'The message center rejects a message that names a channel this application is not authorized for'
+                      )}
+                    </FormDescription>
+                    <FormMessage>
+                      {selected.length < 1
+                        ? t('Select at least one channel')
+                        : null}
+                    </FormMessage>
+                  </FormItem>
+                )}
+              />
+
+              {eip ? (
+                <FormField
+                  control={form.control}
+                  name='moduleId'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('EIP message source')}</FormLabel>
+                      <Select
+                        items={moduleIdOptions}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            {MESSAGE_CENTER_MODULE_IDS.map((module) => (
+                              <SelectItem key={module.value} value={module.value}>
+                                {t(module.label)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage>
+                        {moduleId === ''
+                          ? t('Select a message source for EIP')
+                          : null}
+                      </FormMessage>
+                    </FormItem>
+                  )}
+                />
+              ) : null}
             </>
           ) : null}
         </SettingsForm>

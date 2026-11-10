@@ -64,13 +64,19 @@ afterEach(() => {
 })
 
 /**
- * The console reads whether a message center is configured from the cached status
- * payload, which decides the default notification method.
+ * The console reads whether a message center is configured, and which channels it
+ * sends through, from the cached status payload.
  */
-function cacheMessageCenter(configured: boolean) {
+function cacheMessageCenter(
+  configured: boolean,
+  channels = 'wechat,dingding'
+) {
   window.localStorage.setItem(
     STATUS_STORAGE_KEY,
-    JSON.stringify({ msgcenter_configured: configured })
+    JSON.stringify({
+      msgcenter_configured: configured,
+      msgcenter_channels: configured ? channels : '',
+    })
   )
 }
 
@@ -432,5 +438,26 @@ describe('notifications a user receives', () => {
 
     await save(onUpdate)
     expect(sentBody(put)).toMatchObject({ notify_type: 'email' })
+  })
+
+  it('the channels a user may pick are the ones the site sends through', async () => {
+    cacheMessageCenter(true, 'wechat,eip')
+    const setting = { notify_type: 'oa', oa_channels: 'dingding,wechat' }
+    const put = mockSave(ROLE.USER, setting)
+    const onUpdate = renderNotificationTab(ROLE.USER, setting)
+    expect(screen.getByRole('button', { name: 'WeChat' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: 'EIP' })).not.toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(
+      screen.queryByRole('button', { name: 'DingTalk' })
+    ).not.toBeInTheDocument()
+
+    await save(onUpdate)
+    expect(sentBody(put)).toMatchObject({ oa_channels: 'wechat' })
   })
 })

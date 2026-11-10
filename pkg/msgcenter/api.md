@@ -165,7 +165,7 @@ msgData={"title":"ces","content":"111111","channels":"wechat","intReceiver":"<�
 5. **`cron` 类型**：正文描述为 `1`/`0`，截图里是字符串 `"0"`。实现按字符串传，未填时补 `"0"`（即时发送）。
 6. **`channels` 是应用级授权**：截图示例只返回 `sms,wechat`，即返回的是该 appId 开通的渠道，不代表系统支持的全部渠道。上线实测的一个应用返回 `wechat,eip`——没有钉钉，所以默认渠道不能是 `wechat,dingding`。
 7. **`getChannels` 的实际返回比文档多**：实测还带 `startValidDate`、`endValidDate`、`status`（`"1"`），文档只写了 `channels` 和 `validDate`。客户端只取后两者，其余忽略。
-8. **`eip` 渠道未接入**：它既要按学工号投递，又必须带 `moduleID`（消息来源），需要一个站点级配置项才能用；当前代码的渠道白名单里没有它。开通了 eip 的应用目前只能用 `wechat`。
+8. **`eip` 需要 `moduleID`**：它既要按学工号投递，又必须带消息来源，所以站点配置里多了一个 `msgcenter.module_id`（没配就不发 eip，其余渠道照发）。`app` 渠道只需要学工号，已一并支持。
 9. **未说明**：是否提供 HTTPS、是否有来源 IP 白名单、`token` 是否会轮换及轮换流程、单条消息的接收人数量/频率上限（返回码里有「今日发送消息次数已达上限」但未给配额）。
 10. **接收人字段与渠道的对应**：`intReceiver` 覆盖 `wechat`、`dingding`、`eip`、`app` 四个渠道，短信与邮件各有独立字段。
 
@@ -190,6 +190,8 @@ msgData={"title":"ces","content":"111111","channels":"wechat","intReceiver":"<�
 | `msgcenter.base_url` | 部署地址，**含端口**（正文 9200 与示例 8080 不一致，故不设默认值），必须是绝对 http/https URL |
 | `msgcenter.app_id` | 授权应用 appId |
 | `msgcenter.token` | 令牌 |
+| `msgcenter.channels` | 本站点发送使用的渠道，逗号分隔，取值 `wechat`、`dingding`、`eip`、`app`；留空只用 `wechat` |
+| `msgcenter.module_id` | EIP 的消息来源，取值 `COOPERATE`、`ANNOUNCEMENT`、`SURVEY`、`MEET`、`JOIN_APP`；选中 eip 时必填 |
 
 四个值齐备才算「已配置」，否则 `sendOANotify` 直接跳过并记一行日志。token 是密钥，只出现在 root 权限的 option 接口里，不进公开的 `/api/status`（那里只有一个布尔 `msgcenter_configured`，供控制台决定是否提供 OA、以及默认通知方式）。
 
@@ -199,7 +201,8 @@ msgData={"title":"ces","content":"111111","channels":"wechat","intReceiver":"<�
 
 - 通知方式新增 `oa`（`relaykit/dto` 的 `NotifyTypeOA`），个人设置 → 通知里可选，选后出现渠道多选。
 - **默认通知方式**：站点配好消息中心后，从未选过通知方式的用户默认走 OA（后端 `deliveryMethod`，前端 `defaultNotifyType`，都以 `msgcenter_configured` 为准）；没配好时默认仍是 email，且控制台不提供 OA 这一项——未配置的中心会收下选择却什么都发不出去。
-- `oa_channels` 存逗号分隔的渠道，目前只接受 `wechat`、`dingding`（这两个渠道按学工号投递即可，不需要额外字段）；**留空时只用 `wechat`**——消息中心按应用开通的渠道授权，把未开通的渠道一起发过去会让**整条消息**失败（`6010603`），所以默认只留最保守的一个。前后端都做同样的过滤（后端 `allowedOAChannels`，前端 `normalizeOAChannels`）。
+- `oa_channels` 存逗号分隔的渠道，取值来自站点配置（`/api/status` 的 `msgcenter_channels`）——用户只能在站点要发的渠道里再窄选，因为消息中心按应用授权，带上未开通的渠道会让**整条消息**失败（`6010603`）。留空表示用站点配置的渠道。前后端都做同样的过滤（后端 `messageChannels`，前端 `normalizeOAChannels`）。
+- **每个渠道各有必填字段**，发送前按渠道列表补齐，否则整条消息会被拒：`wechat` → `wechatMsgType`（用 `text`）、`dingding` → `dingMsgType`（用 `text`）、`eip` → `moduleID`（取站点配置，没配就把 eip 从本次发送里去掉）、`app` → 只需学工号。
 - **收件人**：该用户的 `User.CasId`，即 CAS 登录的统一账号（学工号）。没有绑定过 CAS 的账号（例如 root）不发，记日志跳过。
 - 消息类型固定 `text`，充值链接写在正文里；`fileId`、`template`、`eip`/`sms`/`email` 渠道本次不使用。
 

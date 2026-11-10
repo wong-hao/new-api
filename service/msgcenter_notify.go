@@ -14,19 +14,28 @@ import (
 	"github.com/QuantumNous/new-api/setting/system_setting"
 )
 
-// oaChannels are the message center channels that reach a campus account by its
-// unified account number, which is the only recipient identity this site has. The
-// other channels the center offers need a phone number, an email address, or an
-// EIP message source, so a user cannot pick them here yet.
-var oaChannels = []string{msgcenter.ChannelWeChat, msgcenter.ChannelDingTalk}
+// messageChannels picks the channels one notice goes out through: what the site sends
+// through, narrowed to the user's own choice when they made one, minus any channel whose
+// required field the site has not configured (EIP also needs a message source). A
+// channel the centre cannot fill in fails the whole message, taking down the channels
+// that would have worked, so an unusable one is dropped instead.
+func messageChannels(settings *system_setting.MessageCenterSettings, chosen string, userId int) ([]string, string) {
+	channels := settings.EffectiveChannels()
+	if chosen = strings.TrimSpace(chosen); chosen != "" {
+		channels = slices.DeleteFunc(channels, func(channel string) bool {
+			return !slices.Contains(strings.Split(chosen, ","), channel)
+		})
+	}
 
-// defaultOAChannels is used when a user chose the OA method without narrowing down
-// the channels, so choosing the method alone is enough to receive messages. WeChat is
-// the one channel reachable by a campus account that needs no further field, and every
-// centre seen so far authorizes it; a deployment whose centre does not must narrow the
-// channels down in the user's settings. Sending a channel the centre has not authorized
-// fails the whole message, so this default stays minimal on purpose.
-const defaultOAChannels = msgcenter.ChannelWeChat
+	moduleID := settings.EffectiveModuleID()
+	if slices.Contains(channels, msgcenter.ChannelEIP) && moduleID == "" {
+		common.SysLog(common.LogText("the message center EIP channel is selected for user %d but no message source is configured, sending without it", userId))
+		channels = slices.DeleteFunc(channels, func(channel string) bool {
+			return channel == msgcenter.ChannelEIP
+		})
+	}
+	return channels, moduleID
+}
 
 // sendOANotify delivers a notice through the campus message center, addressed to the
 // recipient's campus account (their CAS unified account, the 学工号 the center files
@@ -51,21 +60,41 @@ func sendOANotify(userId int, userSetting dto.UserSetting, data dto.Notify) erro
 		return nil
 	}
 
+	channels, moduleID := messageChannels(settings, userSetting.OAChannels, userId)
+	if len(channels) == 0 {
+		common.SysLog(common.LogText("no channel is left to reach user %d, skip sending OA notify", userId))
+		return nil
+	}
+
 	content := data.Content
 	for _, value := range data.Values {
 		content = strings.Replace(content, dto.ContentValueParam, fmt.Sprintf("%v", value), 1)
 	}
 
 	topUpURL := PaymentReturnURL("/wallet")
-	client := msgcenter.NewClient(settings.EffectiveBaseURL(), settings.AppID, settings.Token)
-	msgId, err := client.SendMsg(context.Background(), &msgcenter.Message{
+	message := &msgcenter.Message{
 		Title:       data.Title,
 		Content:     content,
-		Channels:    allowedOAChannels(userSetting.OAChannels),
+		Channels:    strings.Join(channels, ","),
 		IntReceiver: user.CasId,
 		PCURL:       topUpURL,
 		MobileURL:   topUpURL,
-	})
+	}
+	// Each channel carries its own required field: the centre rejects the message when
+	// one is missing, so it is filled in from the channel list the message sends to.
+	for _, channel := range channels {
+		switch channel {
+		case msgcenter.ChannelWeChat:
+			message.WeChatMsgType = msgcenter.WeChatMsgTypeText
+		case msgcenter.ChannelDingTalk:
+			message.DingMsgType = msgcenter.DingTalkMsgTypeText
+		case msgcenter.ChannelEIP:
+			message.ModuleID = moduleID
+		}
+	}
+
+	client := msgcenter.NewClient(settings.EffectiveBaseURL(), settings.AppID, settings.Token)
+	msgId, err := client.SendMsg(context.Background(), message)
 	if err != nil {
 		var apiErr *msgcenter.APIError
 		if errors.As(err, &apiErr) {
@@ -76,20 +105,4 @@ func sendOANotify(userId int, userSetting dto.UserSetting, data dto.Notify) erro
 
 	common.SysLog(common.LogText("OA notify sent to user %d: %s", userId, msgId))
 	return nil
-}
-
-// allowedOAChannels keeps the channels a user may choose from, dropping anything else
-// a stored setting might carry. An empty result falls back to the default channels.
-func allowedOAChannels(configured string) string {
-	kept := make([]string, 0, len(oaChannels))
-	for channel := range strings.SplitSeq(configured, ",") {
-		channel = strings.TrimSpace(channel)
-		if channel != "" && slices.Contains(oaChannels, channel) {
-			kept = append(kept, channel)
-		}
-	}
-	if len(kept) == 0 {
-		return defaultOAChannels
-	}
-	return strings.Join(kept, ",")
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -135,10 +136,13 @@ func GetStatus(c *gin.Context) {
 		"quota_remind_enabled":      common.QuotaRemindEnabled,
 		"quota_remind_threshold":    common.QuotaRemindThreshold,
 		// msgcenter_configured says whether the campus message center can deliver a
-		// notice at all. It decides the console's default notification method and
-		// whether the message center is offered as one; the credentials themselves
-		// stay in the administrator-only options, never in this public payload.
+		// notice at all, and msgcenter_channels which channels it sends through. They
+		// decide the console's default notification method, whether the message center
+		// is offered as one, and which of its channels a user may pick; the credentials
+		// themselves stay in the administrator-only options, never in this public
+		// payload.
 		"msgcenter_configured": system_setting.GetMessageCenterSettings().IsConfigured(),
+		"msgcenter_channels":   strings.Join(system_setting.GetMessageCenterSettings().EffectiveChannels(), ","),
 	}
 
 	// 根据启用状态注入可选内容

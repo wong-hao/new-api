@@ -2,8 +2,10 @@ package system_setting
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 
+	"github.com/QuantumNous/new-api/pkg/msgcenter"
 	"github.com/QuantumNous/new-api/setting/config"
 )
 
@@ -20,7 +22,38 @@ type MessageCenterSettings struct {
 	BaseURL string `json:"base_url"`
 	AppID   string `json:"app_id"`
 	Token   string `json:"token"`
+	// Channels are the channels this site sends through. The centre accepts only the
+	// ones the application is authorized for — getChannels reports them — and sending
+	// one it is not authorized for fails the whole message, so this stays an explicit
+	// short list instead of trying every channel.
+	Channels string `json:"channels"`
+	// ModuleID is the message source EIP requires: 流程/通知/调查/会议/第三方.
+	ModuleID string `json:"module_id"`
 }
+
+// DeliveryChannels are the channels a notice can reach a campus account by, in the
+// order they are sent, since each addresses the recipient's unified account. The
+// centre's other channels need a phone number, an email address or a file.
+var DeliveryChannels = []string{
+	msgcenter.ChannelWeChat,
+	msgcenter.ChannelDingTalk,
+	msgcenter.ChannelEIP,
+	msgcenter.ChannelApp,
+}
+
+// EIPModuleIDs are the message sources the centre accepts for the EIP channel.
+var EIPModuleIDs = []string{
+	msgcenter.ModuleCooperate,
+	msgcenter.ModuleAnnouncement,
+	msgcenter.ModuleSurvey,
+	msgcenter.ModuleMeeting,
+	msgcenter.ModuleThirdPartyApp,
+}
+
+// defaultMessageCenterChannels is what an unconfigured site sends through. WeChat is
+// the channel every centre seen so far authorizes and the only one needing no further
+// field, so it is the safe single channel to fall back to.
+const defaultMessageCenterChannels = msgcenter.ChannelWeChat
 
 // 默认配置
 var defaultMessageCenterSettings = MessageCenterSettings{}
@@ -49,6 +82,36 @@ func (s *MessageCenterSettings) EffectiveBaseURL() string {
 		return ""
 	}
 	return trimmed
+}
+
+// EffectiveChannels returns the channels this site sends through, in DeliveryChannels
+// order, with anything outside that vocabulary dropped. An unset or unusable value
+// falls back to WeChat alone.
+func (s *MessageCenterSettings) EffectiveChannels() []string {
+	configured := make([]string, 0, len(DeliveryChannels))
+	for channel := range strings.SplitSeq(s.Channels, ",") {
+		if channel = strings.TrimSpace(channel); channel != "" {
+			configured = append(configured, channel)
+		}
+	}
+
+	channels := slices.DeleteFunc(slices.Clone(DeliveryChannels), func(channel string) bool {
+		return !slices.Contains(configured, channel)
+	})
+	if len(channels) == 0 {
+		return []string{defaultMessageCenterChannels}
+	}
+	return channels
+}
+
+// EffectiveModuleID returns the configured EIP message source, or "" when it is not one
+// the centre accepts.
+func (s *MessageCenterSettings) EffectiveModuleID() string {
+	moduleID := strings.TrimSpace(s.ModuleID)
+	if slices.Contains(EIPModuleIDs, moduleID) {
+		return moduleID
+	}
+	return ""
 }
 
 // IsConfigured reports whether a message can actually be delivered: the feature is
