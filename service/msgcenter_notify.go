@@ -21,8 +21,12 @@ import (
 var oaChannels = []string{msgcenter.ChannelWeChat, msgcenter.ChannelDingTalk}
 
 // defaultOAChannels is used when a user chose the OA method without narrowing down
-// the channels, so choosing the method alone is enough to receive messages.
-const defaultOAChannels = msgcenter.ChannelWeChat + "," + msgcenter.ChannelDingTalk
+// the channels, so choosing the method alone is enough to receive messages. WeChat is
+// the one channel reachable by a campus account that needs no further field, and every
+// centre seen so far authorizes it; a deployment whose centre does not must narrow the
+// channels down in the user's settings. Sending a channel the centre has not authorized
+// fails the whole message, so this default stays minimal on purpose.
+const defaultOAChannels = msgcenter.ChannelWeChat
 
 // sendOANotify delivers a notice through the campus message center, addressed to the
 // recipient's campus account (their CAS unified account, the 学工号 the center files

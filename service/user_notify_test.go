@@ -321,7 +321,7 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 			assert.Equal(t, "请及时充值", payload["content"])
 			assert.Equal(t, "0", payload["cron"])
 			if tc.setting.OAChannels == "" {
-				assert.Equal(t, "wechat,dingding", payload["channels"])
+				assert.Equal(t, "wechat", payload["channels"])
 			} else {
 				assert.Equal(t, "dingding", payload["channels"])
 			}

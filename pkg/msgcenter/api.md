@@ -163,9 +163,11 @@ msgData={"title":"ces","content":"111111","channels":"wechat","intReceiver":"<�
 3. **消息字段名**：正文写 `msg`，示例返回 `message`。实现两个都解析。
 4. **sendMsg 请求体**：正文只说「`msgData`【位置：请求体】」，截图的 Body 是 `x-www-form-urlencoded` + 单个 `msgData` 字段。当前实现按截图；若服务端也接受原始 JSON 请求体，可再简化。
 5. **`cron` 类型**：正文描述为 `1`/`0`，截图里是字符串 `"0"`。实现按字符串传，未填时补 `"0"`（即时发送）。
-6. **`channels` 是应用级授权**：截图示例只返回 `sms,wechat`，即返回的是该 appId 开通的渠道，不代表系统支持的全部渠道。
-7. **未说明**：是否提供 HTTPS、是否有来源 IP 白名单、`token` 是否会轮换及轮换流程、单条消息的接收人数量/频率上限（返回码里有「今日发送消息次数已达上限」但未给配额）。
-8. **接收人字段与渠道的对应**：`intReceiver` 覆盖 `wechat`、`dingding`、`eip`、`app` 四个渠道，短信与邮件各有独立字段。
+6. **`channels` 是应用级授权**：截图示例只返回 `sms,wechat`，即返回的是该 appId 开通的渠道，不代表系统支持的全部渠道。上线实测的一个应用返回 `wechat,eip`——没有钉钉，所以默认渠道不能是 `wechat,dingding`。
+7. **`getChannels` 的实际返回比文档多**：实测还带 `startValidDate`、`endValidDate`、`status`（`"1"`），文档只写了 `channels` 和 `validDate`。客户端只取后两者，其余忽略。
+8. **`eip` 渠道未接入**：它既要按学工号投递，又必须带 `moduleID`（消息来源），需要一个站点级配置项才能用；当前代码的渠道白名单里没有它。开通了 eip 的应用目前只能用 `wechat`。
+9. **未说明**：是否提供 HTTPS、是否有来源 IP 白名单、`token` 是否会轮换及轮换流程、单条消息的接收人数量/频率上限（返回码里有「今日发送消息次数已达上限」但未给配额）。
+10. **接收人字段与渠道的对应**：`intReceiver` 覆盖 `wechat`、`dingding`、`eip`、`app` 四个渠道，短信与邮件各有独立字段。
 
 ## 实现说明
 
@@ -197,7 +199,7 @@ msgData={"title":"ces","content":"111111","channels":"wechat","intReceiver":"<�
 
 - 通知方式新增 `oa`（`relaykit/dto` 的 `NotifyTypeOA`），个人设置 → 通知里可选，选后出现渠道多选。
 - **默认通知方式**：站点配好消息中心后，从未选过通知方式的用户默认走 OA（后端 `deliveryMethod`，前端 `defaultNotifyType`，都以 `msgcenter_configured` 为准）；没配好时默认仍是 email，且控制台不提供 OA 这一项——未配置的中心会收下选择却什么都发不出去。
-- `oa_channels` 存逗号分隔的渠道，只接受 `wechat`、`dingding`（消息中心只按学工号投递这两个渠道）；留空用默认 `wechat,dingding`。前后端都做同样的过滤（后端 `allowedOAChannels`，前端 `normalizeOAChannels`）。
+- `oa_channels` 存逗号分隔的渠道，目前只接受 `wechat`、`dingding`（这两个渠道按学工号投递即可，不需要额外字段）；**留空时只用 `wechat`**——消息中心按应用开通的渠道授权，把未开通的渠道一起发过去会让**整条消息**失败（`6010603`），所以默认只留最保守的一个。前后端都做同样的过滤（后端 `allowedOAChannels`，前端 `normalizeOAChannels`）。
 - **收件人**：该用户的 `User.CasId`，即 CAS 登录的统一账号（学工号）。没有绑定过 CAS 的账号（例如 root）不发，记日志跳过。
 - 消息类型固定 `text`，充值链接写在正文里；`fileId`、`template`、`eip`/`sms`/`email` 渠道本次不使用。
 

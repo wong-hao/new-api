@@ -3709,7 +3709,7 @@
     "Message Center Base URL": "Message Center Base URL",
     "Message Center Token": "Message Center Token",
     "Message Priority": "Message Priority",
-    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use WeChat and DingTalk.": "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use WeChat and DingTalk.",
+    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use the default channels.": "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use the default channels.",
     "Metadata": "Metadata",
     "Metadata changes": "Metadata changes",
     "Metadata language": "Metadata language",

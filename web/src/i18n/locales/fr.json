@@ -3709,7 +3709,7 @@
     "Message Center Base URL": "URL de base du centre de messages",
     "Message Center Token": "Jeton du centre de messages",
     "Message Priority": "Priorité du message",
-    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use WeChat and DingTalk.": "Les messages sont envoyés au compte du campus avec lequel vous vous êtes connecté. Si aucun canal n'est sélectionné, l'envoi se fait vers WeChat et DingTalk.",
+    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use the default channels.": "Les messages sont envoyés au compte du campus avec lequel vous vous êtes connecté. Si aucun canal n'est sélectionné, les canaux par défaut sont utilisés.",
     "Metadata": "Métadonnées",
     "Metadata changes": "Modifications des métadonnées",
     "Metadata language": "Langue des métadonnées",

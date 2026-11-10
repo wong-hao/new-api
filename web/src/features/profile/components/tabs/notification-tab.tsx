@@ -353,7 +353,7 @@ export function NotificationTab({
               </ToggleGroup>
               <p className='text-muted-foreground text-xs'>
                 {t(
-                  'Messages are delivered to the campus account you signed in with. Leave every channel unselected to use WeChat and DingTalk.'
+                  'Messages are delivered to the campus account you signed in with. Leave every channel unselected to use the default channels.'
                 )}
               </p>
             </div>

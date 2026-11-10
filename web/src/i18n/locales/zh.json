@@ -3709,7 +3709,7 @@
     "Message Center Base URL": "消息中心地址（Base URL）",
     "Message Center Token": "消息中心令牌",
     "Message Priority": "消息优先级",
-    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use WeChat and DingTalk.": "消息会发送到你登录所用的校内账号。不选择任何渠道时，默认发送到微信和钉钉。",
+    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use the default channels.": "消息会发送到你登录所用的校内账号。不选择任何渠道时，使用默认渠道。",
     "Metadata": "元信息",
     "Metadata changes": "资料变更",
     "Metadata language": "资料语言",

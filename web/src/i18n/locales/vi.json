@@ -3709,7 +3709,7 @@
     "Message Center Base URL": "Base URL trung tâm tin nhắn",
     "Message Center Token": "Token trung tâm tin nhắn",
     "Message Priority": "Ưu tiên tin nhắn",
-    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use WeChat and DingTalk.": "Tin nhắn được gửi đến tài khoản nội bộ bạn đã đăng nhập. Nếu không chọn kênh nào, mặc định gửi qua WeChat và DingTalk.",
+    "Messages are delivered to the campus account you signed in with. Leave every channel unselected to use the default channels.": "Tin nhắn được gửi đến tài khoản nội bộ bạn đã đăng nhập. Nếu không chọn kênh nào, hệ thống dùng kênh mặc định.",
     "Metadata": "Siêu dữ liệu",
     "Metadata changes": "Thay đổi siêu dữ liệu",
     "Metadata language": "Ngôn ngữ siêu dữ liệu",
