@@ -158,16 +158,34 @@ msgData={"title":"ces","content":"111111","channels":"wechat","intReceiver":"<�
 
 ## 与原文不一致 / 待确认
 
-1. **部署端口**：正文地址写 `...:9200`，两张示例截图都是 `...:8080`。排查时以实际部署为准，因此代码不写死 base URL。
-2. **getChannels 参数位置**：正文写「位置：请求头中」，但地址示例又写成 `?appId=账户&token=令牌` 的查询串。当前实现按请求头发送（与截图一致）；若服务端只认查询串，需要再改。
-3. **消息字段名**：正文写 `msg`，示例返回 `message`。实现两个都解析。
-4. **sendMsg 请求体**：正文只说「`msgData`【位置：请求体】」，截图的 Body 是 `x-www-form-urlencoded` + 单个 `msgData` 字段。当前实现按截图；若服务端也接受原始 JSON 请求体，可再简化。
+以下 1～4 条已在真实部署上实测确认（结论写在条目里），其余仍待确认。
+
+1. **部署端口**：正文地址写 `...:9200`，两张示例截图都是 `...:8080`。**实测 9200 正确**，示例截图的端口与真实部署不符；代码不写死 base URL。
+2. **getChannels 参数位置**：正文写「位置：请求头中」，但地址示例又写成 `?appId=账户&token=令牌` 的查询串。**实测按请求头发送即可**（与截图、与实现一致）。
+3. **消息字段名**：正文写 `msg`，示例与实测返回的都是 `message`。实现两个都解析。
+4. **sendMsg 请求体**：正文只说「`msgData`【位置：请求体】」，截图的 Body 是 `x-www-form-urlencoded` + 单个 `msgData` 字段。**实测该形态通过**（`code:200` + 返回 msgId），实现即按此发送。
 5. **`cron` 类型**：正文描述为 `1`/`0`，截图里是字符串 `"0"`。实现按字符串传，未填时补 `"0"`（即时发送）。
 6. **`channels` 是应用级授权**：截图示例只返回 `sms,wechat`，即返回的是该 appId 开通的渠道，不代表系统支持的全部渠道。上线实测的一个应用返回 `wechat,eip`——没有钉钉，所以默认渠道不能是 `wechat,dingding`。
 7. **`getChannels` 的实际返回比文档多**：实测还带 `startValidDate`、`endValidDate`、`status`（`"1"`），文档只写了 `channels` 和 `validDate`。客户端只取后两者，其余忽略。
-8. **`eip` 需要 `moduleID`**：它既要按学工号投递，又必须带消息来源，所以站点配置里多了一个 `msgcenter.module_id`（没配就不发 eip，其余渠道照发）。`app` 渠道只需要学工号，已一并支持。
+8. **`eip` 需要 `moduleID`**：它既要按学工号投递，又必须带消息来源，所以站点配置里多了一个 `msgcenter.module_id`（没配就不发 eip，其余渠道照发）。**实测 `EIP` + `ANNOUNCEMENT` 通过**（`code:200` + msgId）。`app` 渠道只需要学工号，已一并支持，但尚未实测。
 9. **未说明**：是否提供 HTTPS、是否有来源 IP 白名单、`token` 是否会轮换及轮换流程、单条消息的接收人数量/频率上限（返回码里有「今日发送消息次数已达上限」但未给配额）。
 10. **接收人字段与渠道的对应**：`intReceiver` 覆盖 `wechat`、`dingding`、`eip`、`app` 四个渠道，短信与邮件各有独立字段。
+
+### 实测记录（可复现）
+
+```bash
+# 1) 查这个应用开通了哪些渠道
+curl -s http://<base>/htmq/getChannels -H 'appId: <appId>' -H 'token: <token>'
+# → {"code":200,"message":"成功","data":{"channels":"wechat,eip","startValidDate":"...","endValidDate":"...","validDate":"...","status":"1"}}
+
+# 2) 发一条 EIP 消息，字段与客户端发包一致（请求头鉴权 + 表单 msgData）
+curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'msgData={"title":"测试","content":"测试消息","channels":"eip","intReceiver":"<学工号>","moduleID":"ANNOUNCEMENT","cron":"0","pcUrl":"https://example.com","mobileUrl":"https://example.com"}'
+# → {"code":200,"message":"成功","data":"<msgId>"}
+```
+
+`code:200` 只表示消息中心收下了（并给了 msgId）；消息是否真的到了收件人的门户/微信，还要在收件端看一眼。
 
 ## 实现说明
 
