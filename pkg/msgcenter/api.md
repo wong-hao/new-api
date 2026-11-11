@@ -163,7 +163,7 @@ msgData={"title":"ces","content":"111111","channels":"wechat","intReceiver":"<�
 1. **部署端口**：正文地址写 `...:9200`，两张示例截图都是 `...:8080`。**实测 9200 正确**，示例截图的端口与真实部署不符；代码不写死 base URL。
 2. **getChannels 参数位置**：正文写「位置：请求头中」，但地址示例又写成 `?appId=账户&token=令牌` 的查询串。**实测按请求头发送即可**（与截图、与实现一致）。
 3. **消息字段名**：正文写 `msg`，示例与实测返回的都是 `message`。实现两个都解析。
-4. **sendMsg 请求体**：正文只说「`msgData`【位置：请求体】」，截图的 Body 是 `x-www-form-urlencoded` + 单个 `msgData` 字段。**实测该形态通过**（`code:200` + 返回 msgId），实现即按此发送。
+4. **sendMsg 请求体**：正文只说「`msgData`【位置：请求体】」，截图的 Body 是 `x-www-form-urlencoded` + 单个 `msgData` 字段。**实测该形态通过**（`code:200` + 返回 msgId）。客户端会发出的原样字段集（带空的接收人字段、空 `btntext`、含 `pcUrl`/`mobileUrl`）也已单独实测通过，实现即按此发送。
 5. **`cron` 类型**：正文描述为 `1`/`0`，截图里是字符串 `"0"`。实现按字符串传，未填时补 `"0"`（即时发送）。
 6. **`channels` 是应用级授权**：截图示例只返回 `sms,wechat`，即返回的是该 appId 开通的渠道，不代表系统支持的全部渠道。上线实测的一个应用返回 `wechat,eip`——没有钉钉，所以默认渠道不能是 `wechat,dingding`。
 7. **`getChannels` 的实际返回比文档多**：实测还带 `startValidDate`、`endValidDate`、`status`（`"1"`），文档只写了 `channels` 和 `validDate`。客户端只取后两者，其余忽略。
@@ -193,7 +193,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 
 - 包只做「传输 + DTO + 返回码映射」，不读配置、不写库、不碰通知业务；`appId` / `token` / base URL 由调用方传入，后续接 `setting/` 时再决定配置项归属。
 - 发送失败返回 `*APIError`，带上 `code` 与 `message`，便于按返回码分支（重试、告警、降级）。
-- 原文两张示例截图未随本文件提交：`intReceiver` 里是真实学工号，且截图含内网地址。示例已按上文的转写形式保留，示例值全部替换为占位。
+- 校方原文 `.docx` 与本文件放在同一目录（`新消息中心对接.docx`），本文件是它的转写加实现要点。原文示例截图里的 `intReceiver` 是真实学工号、还含内网地址，因此本文件的示例值全部换成了占位。
 - 尚未接线：把告警真正落到这个渠道的其他场景、失败重试与限流策略。
 
 ## 在本仓库中的接线
