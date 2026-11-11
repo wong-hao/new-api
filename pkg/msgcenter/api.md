@@ -222,7 +222,8 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 - `oa_channels` 存逗号分隔的渠道，取值来自站点配置（`/api/status` 的 `msgcenter_channels`）——用户只能在站点要发的渠道里再窄选，因为消息中心按应用授权，带上未开通的渠道会让**整条消息**失败（`6010603`）。留空表示用站点配置的渠道。前后端都做同样的过滤（后端 `messageChannels`，前端 `normalizeOAChannels`）。
 - **每个渠道各有必填字段**，发送前按渠道列表补齐，否则整条消息会被拒：`wechat` → `wechatMsgType`（用 `text`）、`dingding` → `dingMsgType`（用 `text`）、`eip` → `moduleID`（取站点配置，没配就把 eip 从本次发送里去掉）、`app` → 只需学工号。
 - **收件人**：该用户的 `User.CasId`，即 CAS 登录的统一账号（学工号）。没有绑定过 CAS 的账号（例如 root）不发，记日志跳过。
-- 消息类型固定 `text`，充值链接写在正文里；`fileId`、`template`、`eip`/`sms`/`email` 渠道本次不使用。
+- 消息类型固定 `text`，充值链接写在正文里；`fileId`、`template`、`eip`/`sms`/`email` 渠道本次不使用（`eip` 已可发，见上）。
+- **正文以【系统名称】开头**（`common.SystemName`，即控制台「系统信息 → 系统名称」；邮件发送人也是用它）。校内消息和别的系统的通知混在同一个门户/会话里，收件人得知道这条来自哪里。接口本身没有「发送方名称」字段，应用的显示名、卡片横幅都来自消息中心侧的模板/图文配置，所以正文里自己写清楚是最靠得住的做法。
 
 ### 触发：余额为 0 导致扣费失败
 

@@ -70,6 +70,12 @@ func sendOANotify(userId int, userSetting dto.UserSetting, data dto.Notify) erro
 	for _, value := range data.Values {
 		content = strings.Replace(content, dto.ContentValueParam, fmt.Sprintf("%v", value), 1)
 	}
+	// A campus message lands in a shared portal or app next to messages from other
+	// systems, so it names the site that sent it, the way email already goes out in the
+	// site's name.
+	if siteName := strings.TrimSpace(common.SystemName); siteName != "" {
+		content = "【" + siteName + "】" + content
+	}
 
 	topUpURL := PaymentReturnURL("/wallet")
 	message := &msgcenter.Message{

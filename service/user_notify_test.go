@@ -321,7 +321,7 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 			require.True(t, ok)
 			assert.Equal(t, tc.casId, payload["intReceiver"])
 			assert.Equal(t, "额度提醒", payload["title"])
-			assert.Equal(t, "请及时充值", payload["content"])
+			assert.Equal(t, "【"+common.SystemName+"】请及时充值", payload["content"])
 			assert.Equal(t, "0", payload["cron"])
 			if tc.setting.OAChannels == "" {
 				assert.Equal(t, "wechat", payload["channels"])
@@ -545,13 +545,16 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 	settings := system_setting.GetMessageCenterSettings()
 	previousSettings := *settings
 	previousRemind := common.QuotaRemindEnabled
+	previousSystemName := common.SystemName
 	t.Cleanup(func() {
 		*settings = previousSettings
 		common.QuotaRemindEnabled = previousRemind
+		common.SystemName = previousSystemName
 	})
 	*settings = system_setting.MessageCenterSettings{Enabled: true, AppID: "app-1", Token: "token-1"}
 	// The site and the user both turned balance reminders off.
 	common.QuotaRemindEnabled = false
+	common.SystemName = "示例站点"
 	off := false
 
 	var mutex sync.Mutex
@@ -592,6 +595,11 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 	assert.Equal(t, "20200009", sent[0]["intReceiver"])
 	assert.Contains(t, sent[0]["content"], "test-model")
+	// A campus message names the site it came from, taken from the console's system name.
+	content, ok := sent[0]["content"].(string)
+	require.True(t, ok)
+	assert.True(t, strings.HasPrefix(content, "【示例站点】"),
+		"the notice should name its site: %v", sent[0]["content"])
 }
 
 // The message center becomes the default method only once the site has configured
