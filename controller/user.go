@@ -1327,6 +1327,7 @@ type UpdateUserSettingRequest struct {
 	GotifyUrl                        string  `json:"gotify_url,omitempty"`
 	GotifyToken                      string  `json:"gotify_token,omitempty"`
 	GotifyPriority                   int     `json:"gotify_priority,omitempty"`
+	CampusChannels                   string  `json:"campus_channels,omitempty"`
 	UpstreamModelUpdateNotifyEnabled *bool   `json:"upstream_model_update_notify_enabled,omitempty"`
 	ChannelNotifyEnabled             *bool   `json:"channel_notify_enabled,omitempty"`
 	AcceptUnsetModelRatioModel       bool    `json:"accept_unset_model_ratio_model"`
@@ -1341,7 +1342,7 @@ func UpdateUserSetting(c *gin.Context) {
 	}
 
 	// 验证预警类型
-	if req.QuotaWarningType != dto.NotifyTypeEmail && req.QuotaWarningType != dto.NotifyTypeWebhook && req.QuotaWarningType != dto.NotifyTypeBark && req.QuotaWarningType != dto.NotifyTypeGotify {
+	if req.QuotaWarningType != dto.NotifyTypeEmail && req.QuotaWarningType != dto.NotifyTypeWebhook && req.QuotaWarningType != dto.NotifyTypeBark && req.QuotaWarningType != dto.NotifyTypeGotify && req.QuotaWarningType != dto.NotifyTypeCampus {
 		common.ApiErrorT(c, "Invalid warning type")
 		return
 	}
@@ -1444,7 +1445,10 @@ func UpdateUserSetting(c *gin.Context) {
 	settings.NotificationEmail = ""
 	settings.BarkUrl = ""
 	settings.GotifyUrl, settings.GotifyToken, settings.GotifyPriority = "", "", 0
+	settings.CampusChannels = ""
 	switch req.QuotaWarningType {
+	case dto.NotifyTypeCampus:
+		settings.CampusChannels = req.CampusChannels
 	case dto.NotifyTypeWebhook:
 		settings.WebhookUrl = req.WebhookUrl
 		settings.WebhookSecret = req.WebhookSecret

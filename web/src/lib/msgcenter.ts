@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 /**
- * Vocabulary of the campus message center (OA), shared by the site settings that
+ * Vocabulary of the campus message center, shared by the site settings that
  * decide what it sends through and by the notification settings a user picks from.
  *
  * The center's other channels need a phone number, an email address or a file, so they

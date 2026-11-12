@@ -204,7 +204,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 
 | 键 | 说明 |
 | --- | --- |
-| `msgcenter.enabled` | 总开关，关掉后所有 OA 消息都不发 |
+| `msgcenter.enabled` | 总开关，关掉后所有校内消息都不发 |
 | `msgcenter.base_url` | 部署地址，**含端口**（正文 9200 与示例 8080 不一致，故不设默认值），必须是绝对 http/https URL |
 | `msgcenter.app_id` | 授权应用 appId |
 | `msgcenter.token` | 令牌 |
@@ -213,15 +213,15 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 | `msgcenter.button_text` | 卡片式消息上的按钮文字，例如「查看详情」；纯文本渠道会忽略 |
 | `msgcenter.template` | 按渠道给模板 Code 的 JSON 对象，例如 `{"eip":"someCode"}`；模板本身在消息中心里，中心没登记的 Code 会被拒（`6010628`），所以没建好之前留空 |
 
-四个值齐备才算「已配置」，否则 `sendOANotify` 直接跳过并记一行日志。token 是密钥，只出现在 root 权限的 option 接口里，不进公开的 `/api/status`（那里只有一个布尔 `msgcenter_configured`，供控制台决定是否提供 OA、以及默认通知方式）。
+四个值齐备才算「已配置」，否则 `sendCampusNotify` 直接跳过并记一行日志。token 是密钥，只出现在 root 权限的 option 接口里，不进公开的 `/api/status`（那里只有一个布尔 `msgcenter_configured`，供控制台决定是否提供校内消息、以及默认通知方式）。
 
 配置只从这两处落地：管理端界面的这四个 option，或直接写同名的 option（`/api/option/`）。没有环境变量兜底。多节点部署下，写入的那个节点立即生效，其余节点在 `SYNC_FREQUENCY`（默认 60 秒）的选项同步里跟上，不需要重启。
 
 ### 用户侧
 
-- 通知方式新增 `oa`（`relaykit/dto` 的 `NotifyTypeOA`），个人设置 → 通知里可选，选后出现渠道多选。
-- **默认通知方式**：站点配好消息中心后，从未选过通知方式的用户默认走 OA（后端 `deliveryMethod`，前端 `defaultNotifyType`，都以 `msgcenter_configured` 为准）；没配好时默认仍是 email，且控制台不提供 OA 这一项——未配置的中心会收下选择却什么都发不出去。
-- `oa_channels` 存逗号分隔的渠道，取值来自站点配置（`/api/status` 的 `msgcenter_channels`）——用户只能在站点要发的渠道里再窄选，因为消息中心按应用授权，带上未开通的渠道会让**整条消息**失败（`6010603`）。留空表示用站点配置的渠道。前后端都做同样的过滤（后端 `messageChannels`，前端 `normalizeOAChannels`）。
+- 通知方式新增 `campus`（「校内消息中心」，`relaykit/dto` 的 `NotifyTypeCampus`），个人设置 → 通知里可选，选后出现渠道多选。
+- **默认通知方式**：站点配好消息中心后，从未选过通知方式的用户默认走校内消息中心（后端 `deliveryMethod`，前端 `defaultNotifyType`，都以 `msgcenter_configured` 为准）；没配好时默认仍是 email，且控制台不提供这一项——未配置的中心会收下选择却什么都发不出去。
+- `campus_channels` 存逗号分隔的渠道，取值来自站点配置（`/api/status` 的 `msgcenter_channels`）——用户只能在站点要发的渠道里再窄选，因为消息中心按应用授权，带上未开通的渠道会让**整条消息**失败（`6010603`）。留空表示用站点配置的渠道。前后端都做同样的过滤（后端 `messageChannels`，前端 `normalizeCampusChannels`）。
 - **每个渠道各有必填字段**，发送前按渠道列表补齐，否则整条消息会被拒：`wechat` → `wechatMsgType`（用 `text`）、`dingding` → `dingMsgType`（用 `text`）、`eip` → `moduleID`（取站点配置，没配就把 eip 从本次发送里去掉）、`app` → 只需学工号。
 - **收件人**：该用户的 `User.CasId`，即 CAS 登录的统一账号（学工号）。没有绑定过 CAS 的账号（例如 root）不发，记日志跳过。
 - 消息类型固定 `text`，充值链接写在正文里；`fileId`、`template`、`eip`/`sms`/`email` 渠道本次不使用（`eip` 已可发，见上）。
@@ -244,7 +244,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 - 投递：走用户自己选的通知方式（`NotifyUser`）。
 - 独立限流：`Notify.Type` 用 `quota_empty`（不是低额度提醒的 `quota_exceed`），因此有自己的一份 `CheckNotificationLimit` 预算（默认每用户 2 条 / 10 分钟），不会被低额度提醒用掉；余额为 0 的客户端重试也不会刷出成串消息。
 - 异步（`gopool.Go`）、只读：不阻塞响应、不参与任何 quota 运算，失败只记 `SysError`。
-- 文案：`i18n/locales/{en,zh-CN,zh-TW}.yaml` 的 `notify.quota_empty_*`，按用户语言渲染；OA 与 Bark/Gotify 用纯文本，email/webhook 用带链接的 HTML。
+- 文案：`i18n/locales/{en,zh-CN,zh-TW}.yaml` 的 `notify.quota_empty_*`，按用户语言渲染；校内消息中心与 Bark/Gotify 用纯文本，email/webhook 用带链接的 HTML。
 - 未覆盖：已有会话上的补预扣失败（图片调价、任务换更贵渠道时 `Billing.Reserve`）不触发——余额为 0 的用户首次预扣已经失败，走不到那里。
 
 ### 为什么不用 SSRF 防护客户端

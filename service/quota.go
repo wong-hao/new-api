@@ -559,9 +559,9 @@ func quotaNotifyContent(lang string, notifyType string, prompt string, remaining
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowBark, map[string]any{"Prompt": prompt, "Quota": remaining}), []any{prompt, remaining}
 	case dto.NotifyTypeGotify:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowGotify, map[string]any{"Prompt": prompt, "Quota": remaining}), []any{prompt, remaining}
-	case dto.NotifyTypeOA:
+	case dto.NotifyTypeCampus:
 		// 消息中心推送纯文本，链接直接写 URL
-		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowOA, map[string]any{"Prompt": prompt, "Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink}
+		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowCampus, map[string]any{"Prompt": prompt, "Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink}
 	default:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowEmail, map[string]any{"Prompt": prompt, "Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink, topUpLink}
 	}
@@ -574,7 +574,7 @@ func quotaNotifyContent(lang string, notifyType string, prompt string, remaining
 func quotaEmptyNotifyContent(lang string, notifyType string, modelName string, topUpLink string) (string, []any) {
 	values := []any{modelName, topUpLink, topUpLink}
 	switch notifyType {
-	case dto.NotifyTypeBark, dto.NotifyTypeGotify, dto.NotifyTypeOA:
+	case dto.NotifyTypeBark, dto.NotifyTypeGotify, dto.NotifyTypeCampus:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyText, map[string]any{"Model": modelName, "Link": topUpLink}), values
 	default:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyEmail, map[string]any{"Model": modelName, "Link": topUpLink}), values

@@ -92,7 +92,7 @@ const (
 	MsgNotifySubscriptionQuotaLowTitle = "notify.subscription_quota_low_title"
 	MsgNotifyQuotaLowBark              = "notify.quota_low_bark"
 	MsgNotifyQuotaLowGotify            = "notify.quota_low_gotify"
-	MsgNotifyQuotaLowOA                = "notify.quota_low_oa"
+	MsgNotifyQuotaLowCampus            = "notify.quota_low_campus"
 	MsgNotifyQuotaLowEmail             = "notify.quota_low_email"
 )
 

@@ -74,7 +74,7 @@ func deliveryMethod(userSetting dto.UserSetting) string {
 		return userSetting.NotifyType
 	}
 	if system_setting.GetMessageCenterSettings().IsConfigured() {
-		return dto.NotifyTypeOA
+		return dto.NotifyTypeCampus
 	}
 	return dto.NotifyTypeEmail
 }
@@ -129,8 +129,8 @@ func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data 
 			return nil
 		}
 		return sendGotifyNotify(gotifyUrl, gotifyToken, userSetting.GotifyPriority, data)
-	case dto.NotifyTypeOA:
-		return sendOANotify(userId, userSetting, data)
+	case dto.NotifyTypeCampus:
+		return sendCampusNotify(userId, userSetting, data)
 	}
 	return nil
 }

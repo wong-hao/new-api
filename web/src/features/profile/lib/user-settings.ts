@@ -30,7 +30,7 @@ export function messageCenterConfigured(): boolean {
 
 /** The method a user who never chose is served by. */
 export function defaultNotifyType(): NotifyType {
-  return messageCenterConfigured() ? 'oa' : 'email'
+  return messageCenterConfigured() ? 'campus' : 'email'
 }
 
 /**
@@ -43,7 +43,7 @@ export function availableNotificationMethods(): readonly {
 }[] {
   return messageCenterConfigured()
     ? NOTIFICATION_METHODS
-    : NOTIFICATION_METHODS.filter((method) => method.value !== 'oa')
+    : NOTIFICATION_METHODS.filter((method) => method.value !== 'campus')
 }
 
 /**
@@ -52,7 +52,7 @@ export function availableNotificationMethods(): readonly {
  * application is not authorized for, and the site has already established which ones it
  * is.
  */
-export function availableOAChannels(): readonly {
+export function availableCampusChannels(): readonly {
   value: string
   label: string
 }[] {
@@ -67,8 +67,8 @@ export function availableOAChannels(): readonly {
  * The channels a user picked, in the order the site sends them, out of the ones the
  * site offers. An empty result means the site's own channels.
  */
-export function normalizeOAChannels(configured: string): string {
-  return availableOAChannels()
+export function normalizeCampusChannels(configured: string): string {
+  return availableCampusChannels()
     .map((channel) => channel.value)
     .filter((channel) => configured.split(',').includes(channel))
     .join(',')
@@ -106,7 +106,7 @@ export function normalizeUserSettings(
     gotify_url: parsed.gotify_url ?? '',
     gotify_token: parsed.gotify_token ?? '',
     gotify_priority: parsed.gotify_priority ?? 5,
-    oa_channels: normalizeOAChannels(parsed.oa_channels ?? ''),
+    campus_channels: normalizeCampusChannels(parsed.campus_channels ?? ''),
     accept_unset_model_ratio_model:
       parsed.accept_unset_model_ratio_model || false,
     record_ip_log: parsed.record_ip_log || false,

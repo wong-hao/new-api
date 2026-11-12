@@ -231,11 +231,11 @@ func newNotifyTestDB(t *testing.T) *gorm.DB {
 	return database
 }
 
-// A notice for a user who chose OA is delivered by the campus message center:
+// A notice for a user who chose the campus message center is delivered by it:
 // the recipient is the campus account the user signed in with, and only the
 // channels the center reaches that account by are sent. A center that is not
 // configured, or an account with no campus login, gets no message at all.
-func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
+func TestCampusNotifyGoesToTheMessageCenter(t *testing.T) {
 	database := newNotifyTestDB(t)
 
 	settings := system_setting.GetMessageCenterSettings()
@@ -272,7 +272,7 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 			name:     "chosen method without choosing channels uses the site's channels",
 			enabled:  true,
 			casId:    "20200001",
-			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeOA},
+			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
 			wantSent: true,
 		},
 		{
@@ -280,21 +280,21 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 			enabled:  true,
 			casId:    "20200002",
 			channels: "wechat,dingding",
-			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeOA, OAChannels: "dingding,email"},
+			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeCampus, CampusChannels: "dingding,email"},
 			wantSent: true,
 		},
 		{
 			name:     "an account with no campus login is not reachable",
 			enabled:  true,
 			casId:    "",
-			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeOA},
+			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
 			wantSent: false,
 		},
 		{
 			name:     "a center that is not configured sends nothing",
 			enabled:  false,
 			casId:    "20200003",
-			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeOA},
+			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
 			wantSent: false,
 		},
 	} {
@@ -323,7 +323,7 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 			assert.Equal(t, "【"+common.SystemName+"】额度提醒", payload["title"])
 			assert.Equal(t, "【"+common.SystemName+"】请及时充值", payload["content"])
 			assert.Equal(t, "0", payload["cron"])
-			if tc.setting.OAChannels == "" {
+			if tc.setting.CampusChannels == "" {
 				assert.Equal(t, "wechat", payload["channels"])
 			} else {
 				assert.Equal(t, "dingding", payload["channels"])
@@ -462,7 +462,7 @@ func TestMessageChannelsFollowTheSiteAndTheUsersChoice(t *testing.T) {
 // Every channel the message center offers carries a required field of its own, and a
 // message missing one is rejected as a whole, so the sender fills in the ones its
 // channel list needs.
-func TestOANotifyFillsInEachChannelsRequiredField(t *testing.T) {
+func TestCampusNotifyFillsInEachChannelsRequiredField(t *testing.T) {
 	database := newNotifyTestDB(t)
 
 	settings := system_setting.GetMessageCenterSettings()
@@ -525,7 +525,7 @@ func TestOANotifyFillsInEachChannelsRequiredField(t *testing.T) {
 			}
 			require.NoError(t, database.Create(user).Error)
 
-			require.NoError(t, NotifyUser(user.Id, "", dto.UserSetting{NotifyType: dto.NotifyTypeOA},
+			require.NoError(t, NotifyUser(user.Id, "", dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
 				dto.NewNotify(dto.NotifyTypeQuotaEmpty, "标题", "正文", nil)))
 
 			require.Len(t, sent, 1)
@@ -539,7 +539,7 @@ func TestOANotifyFillsInEachChannelsRequiredField(t *testing.T) {
 // A message the centre draws as a card takes its button label and template code from the
 // site. A template that is not a JSON object of channel to code is left out rather than
 // failing every message.
-func TestOANotifyCarriesTheCardFields(t *testing.T) {
+func TestCampusNotifyCarriesTheCardFields(t *testing.T) {
 	database := newNotifyTestDB(t)
 
 	settings := system_setting.GetMessageCenterSettings()
@@ -594,7 +594,7 @@ func TestOANotifyCarriesTheCardFields(t *testing.T) {
 			}
 			require.NoError(t, database.Create(user).Error)
 
-			require.NoError(t, NotifyUser(user.Id, "", dto.UserSetting{NotifyType: dto.NotifyTypeOA},
+			require.NoError(t, NotifyUser(user.Id, "", dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
 				dto.NewNotify(dto.NotifyTypeQuotaEmpty, "标题", "正文", nil)))
 
 			require.Len(t, sent, 1)
@@ -645,7 +645,7 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 	relayInfo := &relaycommon.RelayInfo{
 		UserId: user.Id,
 		UserSetting: dto.UserSetting{
-			NotifyType:          dto.NotifyTypeOA,
+			NotifyType:          dto.NotifyTypeCampus,
 			QuotaWarningEnabled: &off,
 			BillingPreference:   "wallet_only",
 		},
@@ -688,9 +688,9 @@ func TestDeliveryMethodFallsBackToTheMessageCenterOnceConfigured(t *testing.T) {
 		want       string
 	}{
 		{name: "never chose, no center", setting: dto.UserSetting{}, want: dto.NotifyTypeEmail},
-		{name: "never chose, center configured", setting: dto.UserSetting{}, configured: true, want: dto.NotifyTypeOA},
+		{name: "never chose, center configured", setting: dto.UserSetting{}, configured: true, want: dto.NotifyTypeCampus},
 		{name: "chose email", setting: dto.UserSetting{NotifyType: dto.NotifyTypeEmail}, configured: true, want: dto.NotifyTypeEmail},
-		{name: "chose the message center", setting: dto.UserSetting{NotifyType: dto.NotifyTypeOA}, want: dto.NotifyTypeOA},
+		{name: "chose the message center", setting: dto.UserSetting{NotifyType: dto.NotifyTypeCampus}, want: dto.NotifyTypeCampus},
 		{name: "chose bark", setting: dto.UserSetting{NotifyType: dto.NotifyTypeBark}, want: dto.NotifyTypeBark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

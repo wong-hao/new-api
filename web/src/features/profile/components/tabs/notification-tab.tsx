@@ -16,7 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Bell, Loader2, Mail, MessageSquare, Server, Webhook } from 'lucide-react'
+import {
+  Bell,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Server,
+  Webhook,
+} from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -44,8 +51,8 @@ import { ROLE } from '@/lib/roles'
 import { updateUserSettings } from '../../api'
 import {
   availableNotificationMethods,
-  availableOAChannels,
-  normalizeOAChannels,
+  availableCampusChannels,
+  normalizeCampusChannels,
   normalizeUserSettings,
 } from '../../lib/user-settings'
 import type { UserProfile, NotifyType } from '../../types'
@@ -55,7 +62,7 @@ const NOTIFICATION_ICONS: Record<NotifyType, typeof Mail> = {
   webhook: Webhook,
   bark: Bell,
   gotify: Server,
-  oa: MessageSquare,
+  campus: MessageSquare,
 }
 
 // ============================================================================
@@ -128,8 +135,8 @@ export function NotificationTab({
   }
 
   const notifyType = settings.notify_type
-  const selectedOAChannels = settings.oa_channels
-    ? settings.oa_channels.split(',')
+  const selectedCampusChannels = settings.campus_channels
+    ? settings.campus_channels.split(',')
     : []
   // Switches the user never chose: reminders stay on, and root alone gets
   // channel notifications.
@@ -325,15 +332,18 @@ export function NotificationTab({
             </>
           )}
 
-          {/* Campus message center (OA) Settings */}
-          {notifyType === 'oa' && (
+          {/* Campus message center settings */}
+          {notifyType === 'campus' && (
             <div className='space-y-1.5'>
               <Label>{t('Channels')}</Label>
               <ToggleGroup
                 multiple
-                value={selectedOAChannels}
+                value={selectedCampusChannels}
                 onValueChange={(value) =>
-                  updateField('oa_channels', normalizeOAChannels(value.join(',')))
+                  updateField(
+                    'campus_channels',
+                    normalizeCampusChannels(value.join(','))
+                  )
                 }
                 aria-label={t('Channels')}
                 variant='outline'
@@ -341,7 +351,7 @@ export function NotificationTab({
                 spacing={2}
                 className='grid w-full grid-cols-2 gap-2 sm:gap-3'
               >
-                {availableOAChannels().map((channel) => (
+                {availableCampusChannels().map((channel) => (
                   <ToggleGroupItem
                     key={channel.value}
                     value={channel.value}

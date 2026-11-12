@@ -28,5 +28,5 @@ export const NOTIFICATION_METHODS = [
   { value: 'webhook' as const, label: 'Webhook' },
   { value: 'bark' as const, label: 'Bark' },
   { value: 'gotify' as const, label: 'Gotify' },
-  { value: 'oa' as const, label: 'OA Message' },
+  { value: 'campus' as const, label: 'Campus Message Center' },
 ] as const

@@ -11,7 +11,7 @@ type UserSetting struct {
 	GotifyUrl                        string  `json:"gotify_url,omitempty"`                           // GotifyUrl Gotify服务器地址
 	GotifyToken                      string  `json:"gotify_token,omitempty"`                         // GotifyToken Gotify应用令牌
 	GotifyPriority                   int     `json:"gotify_priority"`                                // GotifyPriority Gotify消息优先级
-	OAChannels                       string  `json:"oa_channels,omitempty"`                          // OAChannels 校内消息中心渠道（如 wechat,dingding），留空时使用默认渠道
+	CampusChannels                   string  `json:"campus_channels,omitempty"`                      // CampusChannels 校内消息中心渠道（如 wechat,dingding），留空时使用默认渠道
 	UpstreamModelUpdateNotifyEnabled bool    `json:"upstream_model_update_notify_enabled,omitempty"` // 是否接收上游模型更新定时检测通知（仅管理员）
 	ChannelNotifyEnabled             *bool   `json:"channel_notify_enabled,omitempty"`               // 是否接收渠道通知（仅管理员），未设置时 root 接收、其他管理员不接收
 	AcceptUnsetRatioModel            bool    `json:"accept_unset_model_ratio_model,omitempty"`       // AcceptUnsetRatioModel 是否接受未设置价格的模型
@@ -26,5 +26,5 @@ var (
 	NotifyTypeWebhook = "webhook" // Webhook
 	NotifyTypeBark    = "bark"    // Bark 推送
 	NotifyTypeGotify  = "gotify"  // Gotify 推送
-	NotifyTypeOA      = "oa"      // OA 校内消息中心（消息中心按学工号投递）
+	NotifyTypeCampus  = "campus"  // Campus 校内消息中心（消息中心按学工号投递）
 )

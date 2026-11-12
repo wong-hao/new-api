@@ -37,32 +37,32 @@ func messageChannels(settings *system_setting.MessageCenterSettings, chosen stri
 	return channels, moduleID
 }
 
-// sendOANotify delivers a notice through the campus message center, addressed to the
+// sendCampusNotify delivers a notice through the campus message center, addressed to the
 // recipient's campus account (their CAS unified account, the 学工号 the center files
 // messages under).
 //
 // A site that has not configured the center, or a recipient who has no campus account
 // linked, is not an error: the notice is simply not deliverable, and the caller's other
 // work must not depend on it.
-func sendOANotify(userId int, userSetting dto.UserSetting, data dto.Notify) error {
+func sendCampusNotify(userId int, userSetting dto.UserSetting, data dto.Notify) error {
 	settings := system_setting.GetMessageCenterSettings()
 	if !settings.IsConfigured() {
-		common.SysLog(common.LogText("message center is not configured, skip sending OA notify to user %d", userId))
+		common.SysLog(common.LogText("message center is not configured, skip sending campus notify to user %d", userId))
 		return nil
 	}
 
 	user, err := model.GetUserById(userId, false)
 	if err != nil {
-		return fmt.Errorf("failed to load user %d for OA notify: %w", userId, err)
+		return fmt.Errorf("failed to load user %d for campus notify: %w", userId, err)
 	}
 	if strings.TrimSpace(user.CasId) == "" {
-		common.SysLog(common.LogText("user %d has no campus account, skip sending OA notify", userId))
+		common.SysLog(common.LogText("user %d has no campus account, skip sending campus notify", userId))
 		return nil
 	}
 
-	channels, moduleID := messageChannels(settings, userSetting.OAChannels, userId)
+	channels, moduleID := messageChannels(settings, userSetting.CampusChannels, userId)
 	if len(channels) == 0 {
-		common.SysLog(common.LogText("no channel is left to reach user %d, skip sending OA notify", userId))
+		common.SysLog(common.LogText("no channel is left to reach user %d, skip sending campus notify", userId))
 		return nil
 	}
 
@@ -111,11 +111,11 @@ func sendOANotify(userId int, userSetting dto.UserSetting, data dto.Notify) erro
 	if err != nil {
 		var apiErr *msgcenter.APIError
 		if errors.As(err, &apiErr) {
-			return fmt.Errorf("message center rejected the OA notify for user %d: code %d: %s", userId, apiErr.Code, apiErr.Message)
+			return fmt.Errorf("message center rejected the campus notify for user %d: code %d: %s", userId, apiErr.Code, apiErr.Message)
 		}
 		return err
 	}
 
-	common.SysLog(common.LogText("OA notify sent to user %d: %s", userId, msgId))
+	common.SysLog(common.LogText("campus notify sent to user %d: %s", userId, msgId))
 	return nil
 }

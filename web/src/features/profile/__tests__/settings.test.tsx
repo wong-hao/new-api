@@ -52,7 +52,7 @@ const settings = {
   gotify_url: '',
   gotify_token: '',
   gotify_priority: 5,
-  oa_channels: '',
+  campus_channels: '',
   accept_unset_model_ratio_model: true,
   record_ip_log: true,
   upstream_model_update_notify_enabled: true,
@@ -67,10 +67,7 @@ afterEach(() => {
  * The console reads whether a message center is configured, and which channels it
  * sends through, from the cached status payload.
  */
-function cacheMessageCenter(
-  configured: boolean,
-  channels = 'wechat,dingding'
-) {
+function cacheMessageCenter(configured: boolean, channels = 'wechat,dingding') {
   window.localStorage.setItem(
     STATUS_STORAGE_KEY,
     JSON.stringify({
@@ -123,7 +120,7 @@ describe('user settings saves across profile and security', () => {
       gotify_url: '',
       gotify_token: '',
       gotify_priority: 5,
-      oa_channels: '',
+      campus_channels: '',
       accept_unset_model_ratio_model: false,
       record_ip_log: true,
       upstream_model_update_notify_enabled: false,
@@ -368,8 +365,8 @@ describe('notifications a user receives', () => {
 
   it('choosing the campus message center offers its channels and saves them in a fixed order', async () => {
     cacheMessageCenter(true)
-    const put = mockSave(ROLE.USER, { notify_type: 'oa' })
-    const onUpdate = renderNotificationTab(ROLE.USER, { notify_type: 'oa' })
+    const put = mockSave(ROLE.USER, { notify_type: 'campus' })
+    const onUpdate = renderNotificationTab(ROLE.USER, { notify_type: 'campus' })
     const wechat = screen.getByRole('button', { name: 'WeChat' })
     const dingtalk = screen.getByRole('button', { name: 'DingTalk' })
     expect(wechat).toHaveAttribute('aria-pressed', 'false')
@@ -379,12 +376,12 @@ describe('notifications a user receives', () => {
     fireEvent.click(wechat)
     await save(onUpdate)
 
-    expect(sentBody(put)).toMatchObject({ oa_channels: 'wechat,dingding' })
+    expect(sentBody(put)).toMatchObject({ campus_channels: 'wechat,dingding' })
   })
 
   it('a stored campus channel is shown even when it was saved alongside an unreachable one', async () => {
     cacheMessageCenter(true)
-    const setting = { notify_type: 'oa', oa_channels: 'email,dingding' }
+    const setting = { notify_type: 'campus', campus_channels: 'email,dingding' }
     const put = mockSave(ROLE.USER, setting)
     const onUpdate = renderNotificationTab(ROLE.USER, setting)
     expect(screen.getByRole('button', { name: 'DingTalk' })).toHaveAttribute(
@@ -397,7 +394,7 @@ describe('notifications a user receives', () => {
     )
 
     await save(onUpdate)
-    expect(sentBody(put)).toMatchObject({ oa_channels: 'dingding' })
+    expect(sentBody(put)).toMatchObject({ campus_channels: 'dingding' })
   })
 
   it('another notification method keeps the campus channels out of the way', () => {
@@ -415,13 +412,12 @@ describe('notifications a user receives', () => {
     cacheMessageCenter(true)
     const put = mockSave(ROLE.USER, {})
     const onUpdate = renderNotificationTab(ROLE.USER, {})
-    expect(screen.getByRole('button', { name: 'OA Message' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    )
+    expect(
+      screen.getByRole('button', { name: 'Campus Message Center' })
+    ).toHaveAttribute('aria-pressed', 'true')
 
     await save(onUpdate)
-    expect(sentBody(put)).toMatchObject({ notify_type: 'oa' })
+    expect(sentBody(put)).toMatchObject({ notify_type: 'campus' })
   })
 
   it('a site without a message center neither offers it nor defaults to it', async () => {
@@ -429,7 +425,7 @@ describe('notifications a user receives', () => {
     const put = mockSave(ROLE.USER, {})
     const onUpdate = renderNotificationTab(ROLE.USER, {})
     expect(
-      screen.queryByRole('button', { name: 'OA Message' })
+      screen.queryByRole('button', { name: 'Campus Message Center' })
     ).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Email' })).toHaveAttribute(
       'aria-pressed',
@@ -442,7 +438,10 @@ describe('notifications a user receives', () => {
 
   it('the channels a user may pick are the ones the site sends through', async () => {
     cacheMessageCenter(true, 'wechat,eip')
-    const setting = { notify_type: 'oa', oa_channels: 'dingding,wechat' }
+    const setting = {
+      notify_type: 'campus',
+      campus_channels: 'dingding,wechat',
+    }
     const put = mockSave(ROLE.USER, setting)
     const onUpdate = renderNotificationTab(ROLE.USER, setting)
     expect(screen.getByRole('button', { name: 'WeChat' })).toHaveAttribute(
@@ -458,6 +457,6 @@ describe('notifications a user receives', () => {
     ).not.toBeInTheDocument()
 
     await save(onUpdate)
-    expect(sentBody(put)).toMatchObject({ oa_channels: 'wechat' })
+    expect(sentBody(put)).toMatchObject({ campus_channels: 'wechat' })
   })
 })
