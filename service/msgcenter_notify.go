@@ -72,14 +72,19 @@ func sendOANotify(userId int, userSetting dto.UserSetting, data dto.Notify) erro
 	}
 	// A campus message lands in a shared portal or app next to messages from other
 	// systems, so it names the site that sent it, the way email already goes out in the
-	// site's name.
+	// site's name. The title carries the name too: a channel that renders a card may show
+	// only the title, and a template may render neither our content nor our title, so the
+	// name goes wherever this application controls the text.
+	title := data.Title
 	if siteName := strings.TrimSpace(common.SystemName); siteName != "" {
-		content = "【" + siteName + "】" + content
+		signature := "【" + siteName + "】"
+		title = signature + title
+		content = signature + content
 	}
 
 	topUpURL := PaymentReturnURL("/wallet")
 	message := &msgcenter.Message{
-		Title:       data.Title,
+		Title:       title,
 		Content:     content,
 		Channels:    strings.Join(channels, ","),
 		IntReceiver: user.CasId,

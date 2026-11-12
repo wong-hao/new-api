@@ -320,7 +320,7 @@ func TestOANotifyGoesToTheMessageCenter(t *testing.T) {
 			payload, ok := sent[0]["payload"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, tc.casId, payload["intReceiver"])
-			assert.Equal(t, "额度提醒", payload["title"])
+			assert.Equal(t, "【"+common.SystemName+"】额度提醒", payload["title"])
 			assert.Equal(t, "【"+common.SystemName+"】请及时充值", payload["content"])
 			assert.Equal(t, "0", payload["cron"])
 			if tc.setting.OAChannels == "" {
@@ -668,6 +668,10 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 	require.True(t, ok)
 	assert.True(t, strings.HasPrefix(content, "【示例站点】"),
 		"the notice should name its site: %v", sent[0]["content"])
+	title, ok := sent[0]["title"].(string)
+	require.True(t, ok)
+	assert.True(t, strings.HasPrefix(title, "【示例站点】"),
+		"the title should name its site too: %v", sent[0]["title"])
 }
 
 // The message center becomes the default method only once the site has configured
