@@ -210,6 +210,8 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 | `msgcenter.token` | 令牌 |
 | `msgcenter.channels` | 本站点发送使用的渠道，逗号分隔，取值 `wechat`、`dingding`、`eip`、`app`；留空只用 `wechat` |
 | `msgcenter.module_id` | EIP 的消息来源，取值 `COOPERATE`、`ANNOUNCEMENT`、`SURVEY`、`MEET`、`JOIN_APP`；选中 eip 时必填 |
+| `msgcenter.button_text` | 卡片式消息上的按钮文字，例如「查看详情」；纯文本渠道会忽略 |
+| `msgcenter.template` | 按渠道给模板 Code 的 JSON 对象，例如 `{"eip":"someCode"}`；模板本身在消息中心里，中心没登记的 Code 会被拒（`6010628`），所以没建好之前留空 |
 
 四个值齐备才算「已配置」，否则 `sendOANotify` 直接跳过并记一行日志。token 是密钥，只出现在 root 权限的 option 接口里，不进公开的 `/api/status`（那里只有一个布尔 `msgcenter_configured`，供控制台决定是否提供 OA、以及默认通知方式）。
 
@@ -224,6 +226,15 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 - **收件人**：该用户的 `User.CasId`，即 CAS 登录的统一账号（学工号）。没有绑定过 CAS 的账号（例如 root）不发，记日志跳过。
 - 消息类型固定 `text`，充值链接写在正文里；`fileId`、`template`、`eip`/`sms`/`email` 渠道本次不使用（`eip` 已可发，见上）。
 - **正文以【系统名称】开头**（`common.SystemName`，即控制台「系统信息 → 系统名称」；邮件发送人也是用它）。校内消息和别的系统的通知混在同一个门户/会话里，收件人得知道这条来自哪里。接口本身没有「发送方名称」字段，应用的显示名、卡片横幅都来自消息中心侧的模板/图文配置，所以正文里自己写清楚是最靠得住的做法。
+
+### 卡片式外观（模板）
+
+收件人看到的「横幅 + 标题 + 说明」那种卡片，不是接口传的内容，而是消息中心按**模板/图文配置**渲染的：
+
+- `template` 只是「渠道 → 模板 Code」的 JSON（`{"eip":"someCode"}`），模板本体存在中心侧；中心没登记的 Code 直接拒（`6010628`）。所以「自己写模板」能做的部分是：在中心侧建模板（如果应用账号有模板管理权限），把 Code 填进 `msgcenter.template`。
+- `btntext` 是卡片上的按钮文字，已做成 `msgcenter.button_text`；纯文本渠道忽略它。想试「是不是加上按钮就变卡片」，填上它发一条即可。
+- `fileId`（图片文件 ID）文档写的是「为空时根据消息类型使用默认配置信息」——也就是说图文类消息缺图时中心会用默认图，不需要我们先上传。上传接口本身这份文档没写。
+- 微信/钉钉还有自己的消息类型字段（`wechatMsgType` 的 `textcard`/`news`、`dingMsgType` 的 `action_card`/`link`），走卡片时要用它们；**EIP 没有这个开关**，EIP 的外观只能靠模板/图文配置与 `btntext`。
 
 ### 触发：余额为 0 导致扣费失败
 

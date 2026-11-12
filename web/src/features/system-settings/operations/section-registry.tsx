@@ -96,6 +96,8 @@ const OPERATIONS_SECTIONS = [
           token: settings['msgcenter.token'] ?? '',
           channels: settings['msgcenter.channels'] ?? '',
           moduleId: settings['msgcenter.module_id'] ?? '',
+          buttonText: settings['msgcenter.button_text'] ?? '',
+          template: settings['msgcenter.template'] ?? '',
         }}
       />
     ),

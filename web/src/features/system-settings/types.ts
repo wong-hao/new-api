@@ -377,6 +377,8 @@ export type OperationsSettings = {
   'msgcenter.token': string
   'msgcenter.channels': string
   'msgcenter.module_id': string
+  'msgcenter.button_text': string
+  'msgcenter.template': string
   QuotaRemindEnabled: boolean
   QuotaRemindThreshold: string
   EmailProvider: 'smtp' | 'resend'

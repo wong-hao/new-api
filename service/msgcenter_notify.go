@@ -83,8 +83,10 @@ func sendOANotify(userId int, userSetting dto.UserSetting, data dto.Notify) erro
 		Content:     content,
 		Channels:    strings.Join(channels, ","),
 		IntReceiver: user.CasId,
+		BtnText:     strings.TrimSpace(settings.ButtonText),
 		PCURL:       topUpURL,
 		MobileURL:   topUpURL,
+		Template:    settings.EffectiveTemplate(),
 	}
 	// Each channel carries its own required field: the centre rejects the message when
 	// one is missing, so it is filled in from the channel list the message sends to.

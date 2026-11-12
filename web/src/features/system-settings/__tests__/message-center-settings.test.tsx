@@ -33,6 +33,8 @@ const credentials = {
   token: 'token-1',
   channels: 'wechat',
   moduleId: '',
+  buttonText: '',
+  template: '',
 }
 
 afterEach(() => {
@@ -166,5 +168,45 @@ describe('campus message center settings', () => {
 
     expect(screen.getByText('Select at least one channel')).toBeInTheDocument()
     expect(saveButton()).toBeDisabled()
+  })
+
+  it('a card button label and a template code are saved as typed', async () => {
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true } })
+    renderSection(credentials)
+
+    fireEvent.change(screen.getByLabelText('Button text'), {
+      target: { value: '查看详情' },
+    })
+    fireEvent.change(screen.getByLabelText('Message template'), {
+      target: { value: '{"eip":"code1"}' },
+    })
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(2))
+    expect(put).toHaveBeenCalledWith('/api/option/', {
+      key: 'msgcenter.button_text',
+      value: '查看详情',
+    })
+    expect(put).toHaveBeenCalledWith('/api/option/', {
+      key: 'msgcenter.template',
+      value: '{"eip":"code1"}',
+    })
+  })
+
+  it('a template that is not a JSON object is refused', async () => {
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true } })
+    renderSection(credentials)
+
+    fireEvent.change(screen.getByLabelText('Message template'), {
+      target: { value: '{not json' },
+    })
+    fireEvent.click(saveButton())
+
+    expect(await screen.findByText('Enter a JSON object')).toBeInTheDocument()
+    expect(put).not.toHaveBeenCalled()
   })
 })

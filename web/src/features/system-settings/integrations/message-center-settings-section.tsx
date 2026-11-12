@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import {
   MESSAGE_CENTER_CHANNELS,
   MESSAGE_CENTER_MODULE_IDS,
@@ -67,6 +68,27 @@ const schema = z.object({
   channels: z.string(),
   /** Message source the EIP channel requires */
   moduleId: z.string(),
+  /** Label the centre puts on a message it draws as a card */
+  buttonText: z.string(),
+  /** Template code per channel, as the JSON object the centre takes */
+  template: z
+    .string()
+    .refine(
+      (value) => {
+        if (value.trim() === '') return true
+        try {
+          const parsed: unknown = JSON.parse(value)
+          return (
+            typeof parsed === 'object' &&
+            parsed !== null &&
+            !Array.isArray(parsed)
+          )
+        } catch {
+          return false
+        }
+      },
+      { message: 'Enter a JSON object' }
+    ),
 })
 
 // NOTE: react-hook-form resolver uses the schema input type
@@ -89,6 +111,8 @@ export function MessageCenterSettingsSection({
       token: defaultValues.token ?? '',
       channels: defaultValues.channels ?? '',
       moduleId: defaultValues.moduleId ?? '',
+      buttonText: defaultValues.buttonText ?? '',
+      template: defaultValues.template ?? '',
     },
   })
 
@@ -157,6 +181,18 @@ export function MessageCenterSettingsSection({
       updates.push({
         key: 'msgcenter.module_id',
         value: String(values.moduleId || ''),
+      })
+    }
+    if ((values.buttonText || '') !== (defaultValues.buttonText || '')) {
+      updates.push({
+        key: 'msgcenter.button_text',
+        value: String(values.buttonText || ''),
+      })
+    }
+    if ((values.template || '') !== (defaultValues.template || '')) {
+      updates.push({
+        key: 'msgcenter.template',
+        value: String(values.template || ''),
       })
     }
 
@@ -341,6 +377,57 @@ export function MessageCenterSettingsSection({
                   )}
                 />
               ) : null}
+
+              <FormField
+                control={form.control}
+                name='buttonText'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Button text')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t('View details')}
+                        autoComplete='off'
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Shown on a message the centre draws as a card; a channel that renders plain text ignores it'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='template'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Message template')}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={3}
+                        placeholder='{"eip":"someCode"}'
+                        autoComplete='off'
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Template code per channel, as a JSON object. The template itself lives in the message centre, and a code it has not registered is rejected'
+                      )}
+                    </FormDescription>
+                    <FormMessage>
+                      {form.formState.errors.template
+                        ? t('Enter a JSON object')
+                        : null}
+                    </FormMessage>
+                  </FormItem>
+                )}
+              />
             </>
           ) : null}
         </SettingsForm>

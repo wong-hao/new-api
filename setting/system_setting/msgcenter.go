@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/pkg/msgcenter"
 	"github.com/QuantumNous/new-api/setting/config"
 )
@@ -29,6 +30,13 @@ type MessageCenterSettings struct {
 	Channels string `json:"channels"`
 	// ModuleID is the message source EIP requires: 流程/通知/调查/会议/第三方.
 	ModuleID string `json:"module_id"`
+	// ButtonText is the label the centre shows on a message it draws as a card, such as
+	// 更多 or 查看详情. A channel that renders plain text ignores it.
+	ButtonText string `json:"button_text"`
+	// Template names the centre's template code per channel, as the JSON object the send
+	// API takes (`{"eip":"someCode"}`). The template itself lives in the centre; a code it
+	// has not registered is rejected (6010628), so this stays empty until one exists.
+	Template string `json:"template"`
 }
 
 // DeliveryChannels are the channels a notice can reach a campus account by, in the
@@ -112,6 +120,21 @@ func (s *MessageCenterSettings) EffectiveModuleID() string {
 		return moduleID
 	}
 	return ""
+}
+
+// EffectiveTemplate returns the configured template codes as the JSON object the centre
+// takes, or "" when nothing usable is configured. A value that is not a JSON object of
+// channel to code is treated as unset rather than failing every message.
+func (s *MessageCenterSettings) EffectiveTemplate() string {
+	template := strings.TrimSpace(s.Template)
+	if template == "" {
+		return ""
+	}
+	var codes map[string]string
+	if err := common.UnmarshalJsonStr(template, &codes); err != nil || len(codes) == 0 {
+		return ""
+	}
+	return template
 }
 
 // IsConfigured reports whether a message can actually be delivered: the feature is

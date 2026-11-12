@@ -536,6 +536,74 @@ func TestOANotifyFillsInEachChannelsRequiredField(t *testing.T) {
 	}
 }
 
+// A message the centre draws as a card takes its button label and template code from the
+// site. A template that is not a JSON object of channel to code is left out rather than
+// failing every message.
+func TestOANotifyCarriesTheCardFields(t *testing.T) {
+	database := newNotifyTestDB(t)
+
+	settings := system_setting.GetMessageCenterSettings()
+	previousSettings := *settings
+	t.Cleanup(func() { *settings = previousSettings })
+
+	var mutex sync.Mutex
+	var sent []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseForm())
+		var payload map[string]any
+		require.NoError(t, common.UnmarshalJsonStr(r.PostFormValue("msgData"), &payload))
+		mutex.Lock()
+		sent = append(sent, payload)
+		mutex.Unlock()
+		_, _ = w.Write([]byte(`{"code":200,"message":"成功","data":"msg-4"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	for index, tc := range []struct {
+		name         string
+		template     string
+		wantTemplate string
+	}{
+		{
+			name:         "the configured template code reaches the centre",
+			template:     `{"eip":"code1"}`,
+			wantTemplate: `{"eip":"code1"}`,
+		},
+		{
+			name:     "a template that is not JSON is left out",
+			template: "not json",
+		},
+		{
+			name:     "a JSON array is not a template map",
+			template: `["code1"]`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mutex.Lock()
+			sent = nil
+			mutex.Unlock()
+
+			*settings = system_setting.MessageCenterSettings{
+				Enabled: true, BaseURL: server.URL, AppID: "app-1", Token: "token-1",
+				Channels: "eip", ModuleID: "ANNOUNCEMENT",
+				ButtonText: "查看详情", Template: tc.template,
+			}
+			user := &model.User{
+				Username: fmt.Sprintf("card-%d", index), CasId: "20200011",
+				Status: common.UserStatusEnabled, AffCode: fmt.Sprintf("card-%d", index),
+			}
+			require.NoError(t, database.Create(user).Error)
+
+			require.NoError(t, NotifyUser(user.Id, "", dto.UserSetting{NotifyType: dto.NotifyTypeOA},
+				dto.NewNotify(dto.NotifyTypeQuotaEmpty, "标题", "正文", nil)))
+
+			require.Len(t, sent, 1)
+			assert.Equal(t, "查看详情", sent[0]["btntext"])
+			assert.Equal(t, tc.wantTemplate, sent[0]["template"])
+		})
+	}
+}
+
 // A user who chose the message center has to hear a rejected request there: the
 // low-balance switches ask for at most one notice when a balance crosses a
 // threshold, so they do not govern a notice about a request that already failed.
