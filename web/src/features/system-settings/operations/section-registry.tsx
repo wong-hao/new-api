@@ -96,6 +96,7 @@ const OPERATIONS_SECTIONS = [
           token: settings['msgcenter.token'] ?? '',
           channels: settings['msgcenter.channels'] ?? '',
           moduleId: settings['msgcenter.module_id'] ?? '',
+          wechatMsgType: settings['msgcenter.wechat_msg_type'] ?? '',
           buttonText: settings['msgcenter.button_text'] ?? '',
           template: settings['msgcenter.template'] ?? '',
         }}

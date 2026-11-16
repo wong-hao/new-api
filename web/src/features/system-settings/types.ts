@@ -377,6 +377,7 @@ export type OperationsSettings = {
   'msgcenter.token': string
   'msgcenter.channels': string
   'msgcenter.module_id': string
+  'msgcenter.wechat_msg_type': string
   'msgcenter.button_text': string
   'msgcenter.template': string
   QuotaRemindEnabled: boolean

@@ -48,6 +48,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   MESSAGE_CENTER_CHANNELS,
   MESSAGE_CENTER_MODULE_IDS,
+  MESSAGE_CENTER_WECHAT_MSG_TYPES,
 } from '@/lib/msgcenter'
 
 import {
@@ -68,6 +69,8 @@ const schema = z.object({
   channels: z.string(),
   /** Message source the EIP channel requires */
   moduleId: z.string(),
+  /** Type of message the WeChat channel sends */
+  wechatMsgType: z.string(),
   /** Label the centre puts on a message it draws as a card */
   buttonText: z.string(),
   /** Template code per channel, as the JSON object the centre takes */
@@ -111,6 +114,8 @@ export function MessageCenterSettingsSection({
       token: defaultValues.token ?? '',
       channels: defaultValues.channels ?? '',
       moduleId: defaultValues.moduleId ?? '',
+      // An unset type is plain text on the site, so the form starts there too.
+      wechatMsgType: defaultValues.wechatMsgType || 'text',
       buttonText: defaultValues.buttonText ?? '',
       template: defaultValues.template ?? '',
     },
@@ -125,6 +130,7 @@ export function MessageCenterSettingsSection({
   // An EIP message carries a source; without one the centre rejects the message, so a
   // site that cannot name one may not be saved.
   const eip = selected.includes('eip')
+  const wechat = selected.includes('wechat')
   const canSave = selected.length > 0 && (!eip || moduleId !== '')
 
   const channelOptions = useMemo(
@@ -140,6 +146,14 @@ export function MessageCenterSettingsSection({
       MESSAGE_CENTER_MODULE_IDS.map((module) => ({
         value: module.value,
         label: t(module.label),
+      })),
+    [t]
+  )
+  const wechatMsgTypeOptions = useMemo(
+    () =>
+      MESSAGE_CENTER_WECHAT_MSG_TYPES.map((msgType) => ({
+        value: msgType.value,
+        label: t(msgType.label),
       })),
     [t]
   )
@@ -181,6 +195,15 @@ export function MessageCenterSettingsSection({
       updates.push({
         key: 'msgcenter.module_id',
         value: String(values.moduleId || ''),
+      })
+    }
+    if (
+      (values.wechatMsgType || 'text') !==
+      (defaultValues.wechatMsgType || 'text')
+    ) {
+      updates.push({
+        key: 'msgcenter.wechat_msg_type',
+        value: String(values.wechatMsgType || 'text'),
       })
     }
     if ((values.buttonText || '') !== (defaultValues.buttonText || '')) {
@@ -341,6 +364,47 @@ export function MessageCenterSettingsSection({
                 )}
               />
 
+              {wechat ? (
+                <FormField
+                  control={form.control}
+                  name='wechatMsgType'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('WeChat message type')}</FormLabel>
+                      <Select
+                        items={wechatMsgTypeOptions}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            {MESSAGE_CENTER_WECHAT_MSG_TYPES.map((msgType) => (
+                              <SelectItem
+                                key={msgType.value}
+                                value={msgType.value}
+                              >
+                                {t(msgType.label)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {t(
+                          'A news card needs a news configuration registered on the centre; a text card shows the button text above'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+
               {eip ? (
                 <FormField
                   control={form.control}
@@ -361,7 +425,10 @@ export function MessageCenterSettingsSection({
                         <SelectContent alignItemWithTrigger={false}>
                           <SelectGroup>
                             {MESSAGE_CENTER_MODULE_IDS.map((module) => (
-                              <SelectItem key={module.value} value={module.value}>
+                              <SelectItem
+                                key={module.value}
+                                value={module.value}
+                              >
                                 {t(module.label)}
                               </SelectItem>
                             ))}

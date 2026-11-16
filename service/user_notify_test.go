@@ -261,27 +261,49 @@ func TestCampusNotifyGoesToTheMessageCenter(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	for _, tc := range []struct {
-		name     string
-		enabled  bool
-		casId    string
-		channels string
-		setting  dto.UserSetting
-		wantSent bool
+		name           string
+		enabled        bool
+		casId          string
+		channels       string
+		wechatMsgType  string
+		wantWeChatType string
+		setting        dto.UserSetting
+		wantSent       bool
 	}{
 		{
-			name:     "chosen method without choosing channels uses the site's channels",
-			enabled:  true,
-			casId:    "20200001",
-			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
-			wantSent: true,
+			name:           "chosen method without choosing channels uses the site's channels",
+			enabled:        true,
+			casId:          "20200001",
+			setting:        dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
+			wantWeChatType: "text",
+			wantSent:       true,
 		},
 		{
-			name:     "a user narrows the site's channels down to one of them",
-			enabled:  true,
-			casId:    "20200002",
-			channels: "wechat,dingding",
-			setting:  dto.UserSetting{NotifyType: dto.NotifyTypeCampus, CampusChannels: "dingding,email"},
-			wantSent: true,
+			name:           "a user narrows the site's channels down to one of them",
+			enabled:        true,
+			casId:          "20200002",
+			channels:       "wechat,dingding",
+			setting:        dto.UserSetting{NotifyType: dto.NotifyTypeCampus, CampusChannels: "dingding,email"},
+			wantWeChatType: "",
+			wantSent:       true,
+		},
+		{
+			name:           "a site that sends a news card sets its WeChat message type",
+			enabled:        true,
+			casId:          "20200004",
+			wechatMsgType:  "news",
+			setting:        dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
+			wantWeChatType: "news",
+			wantSent:       true,
+		},
+		{
+			name:           "a message type the centre cannot send falls back to text",
+			enabled:        true,
+			casId:          "20200005",
+			wechatMsgType:  "file",
+			setting:        dto.UserSetting{NotifyType: dto.NotifyTypeCampus},
+			wantWeChatType: "text",
+			wantSent:       true,
 		},
 		{
 			name:     "an account with no campus login is not reachable",
@@ -303,7 +325,7 @@ func TestCampusNotifyGoesToTheMessageCenter(t *testing.T) {
 			sent = sent[:0]
 			mutex.Unlock()
 
-			*settings = system_setting.MessageCenterSettings{Enabled: tc.enabled, BaseURL: server.URL, AppID: "app-1", Token: "token-1", Channels: tc.channels}
+			*settings = system_setting.MessageCenterSettings{Enabled: tc.enabled, BaseURL: server.URL, AppID: "app-1", Token: "token-1", Channels: tc.channels, WeChatMsgType: tc.wechatMsgType}
 			user := &model.User{Username: "oa-" + tc.casId, CasId: tc.casId, Status: common.UserStatusEnabled, AffCode: "oa-" + tc.casId}
 			require.NoError(t, database.Create(user).Error)
 
@@ -323,6 +345,7 @@ func TestCampusNotifyGoesToTheMessageCenter(t *testing.T) {
 			assert.Equal(t, "【"+common.SystemName+"】额度提醒", payload["title"])
 			assert.Equal(t, "【"+common.SystemName+"】请及时充值", payload["content"])
 			assert.Equal(t, "0", payload["cron"])
+			assert.Equal(t, tc.wantWeChatType, payload["wechatMsgType"])
 			if tc.setting.CampusChannels == "" {
 				assert.Equal(t, "wechat", payload["channels"])
 			} else {

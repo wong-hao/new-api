@@ -38,3 +38,10 @@ export const MESSAGE_CENTER_MODULE_IDS = [
   { value: 'MEET', label: 'Meeting' },
   { value: 'JOIN_APP', label: 'Third-party app' },
 ] as const
+
+/** The message types the wechat channel can send, as its wechatMsgType field. */
+export const MESSAGE_CENTER_WECHAT_MSG_TYPES = [
+  { value: 'text', label: 'Text message' },
+  { value: 'news', label: 'News card' },
+  { value: 'textcard', label: 'Text card' },
+] as const

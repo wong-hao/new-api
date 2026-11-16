@@ -36,6 +36,7 @@ const defaultOperationsSettings: OperationsSettings = {
   'msgcenter.token': '',
   'msgcenter.channels': '',
   'msgcenter.module_id': '',
+  'msgcenter.wechat_msg_type': '',
   'msgcenter.button_text': '',
   'msgcenter.template': '',
   QuotaRemindEnabled: true,

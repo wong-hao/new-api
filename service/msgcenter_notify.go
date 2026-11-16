@@ -98,7 +98,7 @@ func sendCampusNotify(userId int, userSetting dto.UserSetting, data dto.Notify) 
 	for _, channel := range channels {
 		switch channel {
 		case msgcenter.ChannelWeChat:
-			message.WeChatMsgType = msgcenter.WeChatMsgTypeText
+			message.WeChatMsgType = settings.EffectiveWeChatMsgType()
 		case msgcenter.ChannelDingTalk:
 			message.DingMsgType = msgcenter.DingTalkMsgTypeText
 		case msgcenter.ChannelEIP:

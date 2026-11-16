@@ -30,6 +30,10 @@ type MessageCenterSettings struct {
 	Channels string `json:"channels"`
 	// ModuleID is the message source EIP requires: 流程/通知/调查/会议/第三方.
 	ModuleID string `json:"module_id"`
+	// WeChatMsgType is what the wechat channel sends: plain text, a news card
+	// (图文) or a text card. A news card needs the centre to have a news
+	// configuration for the application, so plain text is the fallback.
+	WeChatMsgType string `json:"wechat_msg_type"`
 	// ButtonText is the label the centre shows on a message it draws as a card, such as
 	// 更多 or 查看详情. A channel that renders plain text ignores it.
 	ButtonText string `json:"button_text"`
@@ -47,6 +51,14 @@ var DeliveryChannels = []string{
 	msgcenter.ChannelDingTalk,
 	msgcenter.ChannelEIP,
 	msgcenter.ChannelApp,
+}
+
+// WeChatMsgTypes are the message types the wechat channel can send. A file message
+// needs an uploaded fileId, which the site never sends, so it is not offered.
+var WeChatMsgTypes = []string{
+	msgcenter.WeChatMsgTypeText,
+	msgcenter.WeChatMsgTypeNews,
+	msgcenter.WeChatMsgTypeTextCard,
 }
 
 // EIPModuleIDs are the message sources the centre accepts for the EIP channel.
@@ -120,6 +132,16 @@ func (s *MessageCenterSettings) EffectiveModuleID() string {
 		return moduleID
 	}
 	return ""
+}
+
+// EffectiveWeChatMsgType returns the configured WeChat message type, or plain text
+// when it is unset or not one the centre accepts.
+func (s *MessageCenterSettings) EffectiveWeChatMsgType() string {
+	msgType := strings.TrimSpace(s.WeChatMsgType)
+	if slices.Contains(WeChatMsgTypes, msgType) {
+		return msgType
+	}
+	return msgcenter.WeChatMsgTypeText
 }
 
 // EffectiveTemplate returns the configured template codes as the JSON object the centre

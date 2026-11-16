@@ -210,6 +210,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 | `msgcenter.token` | 令牌 |
 | `msgcenter.channels` | 本站点发送使用的渠道，逗号分隔，取值 `wechat`、`dingding`、`eip`、`app`；留空只用 `wechat` |
 | `msgcenter.module_id` | EIP 的消息来源，取值 `COOPERATE`、`ANNOUNCEMENT`、`SURVEY`、`MEET`、`JOIN_APP`；选中 eip 时必填 |
+| `msgcenter.wechat_msg_type` | 微信渠道的消息类型：`text`（默认）、`news`（图文）、`textcard`（文本卡片）；`news` 需要中心侧已给应用登记图文配置，否则整条消息被拒（`6010623`） |
 | `msgcenter.button_text` | 卡片式消息上的按钮文字，例如「查看详情」；纯文本渠道会忽略 |
 | `msgcenter.template` | 按渠道给模板 Code 的 JSON 对象，例如 `{"eip":"someCode"}`；模板本身在消息中心里，中心没登记的 Code 会被拒（`6010628`），所以没建好之前留空 |
 
@@ -222,9 +223,9 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 - 通知方式新增 `campus`（「校内消息中心」，`relaykit/dto` 的 `NotifyTypeCampus`），个人设置 → 通知里可选，选后出现渠道多选。
 - **默认通知方式**：站点配好消息中心后，从未选过通知方式的用户默认走校内消息中心（后端 `deliveryMethod`，前端 `defaultNotifyType`，都以 `msgcenter_configured` 为准）；没配好时默认仍是 email，且控制台不提供这一项——未配置的中心会收下选择却什么都发不出去。
 - `campus_channels` 存逗号分隔的渠道，取值来自站点配置（`/api/status` 的 `msgcenter_channels`）——用户只能在站点要发的渠道里再窄选，因为消息中心按应用授权，带上未开通的渠道会让**整条消息**失败（`6010603`）。留空表示用站点配置的渠道。前后端都做同样的过滤（后端 `messageChannels`，前端 `normalizeCampusChannels`）。
-- **每个渠道各有必填字段**，发送前按渠道列表补齐，否则整条消息会被拒：`wechat` → `wechatMsgType`（用 `text`）、`dingding` → `dingMsgType`（用 `text`）、`eip` → `moduleID`（取站点配置，没配就把 eip 从本次发送里去掉）、`app` → 只需学工号。
+- **每个渠道各有必填字段**，发送前按渠道列表补齐，否则整条消息会被拒：`wechat` → `wechatMsgType`（取站点配置 `msgcenter.wechat_msg_type`，默认 `text`）、`dingding` → `dingMsgType`（用 `text`）、`eip` → `moduleID`（取站点配置，没配就把 eip 从本次发送里去掉）、`app` → 只需学工号。
 - **收件人**：该用户的 `User.CasId`，即 CAS 登录的统一账号（学工号）。没有绑定过 CAS 的账号（例如 root）不发，记日志跳过。
-- 消息类型固定 `text`，充值链接写在正文里；`fileId`、`template`、`eip`/`sms`/`email` 渠道本次不使用（`eip` 已可发，见上）。
+- 微信消息类型由站点配置 `msgcenter.wechat_msg_type` 决定（默认 `text`，另可选 `news`、`textcard`），充值链接写在正文和 `pcUrl`/`mobileUrl` 里；`fileId`、`sms`/`email` 渠道本次不使用（`eip` 已可发，见上）。
 - **标题和正文都以【系统名称】开头**（`common.SystemName`，即控制台「系统信息 → 系统名称」；邮件发送人也是用它）。校内消息和别的系统的通知混在同一个门户/会话里，收件人得知道这条来自哪里。接口本身没有「发送方名称」字段，应用的显示名、卡片横幅都来自消息中心侧的模板/图文配置，所以两处我们自己控制的文字都写上——模板渲染时可能只显示标题，或两者都不用。
 
 ### 卡片式外观（模板）
@@ -234,7 +235,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 - `template` 只是「渠道 → 模板 Code」的 JSON（`{"eip":"someCode"}`），模板本体存在中心侧；中心没登记的 Code 直接拒（`6010628`）。所以「自己写模板」能做的部分是：在中心侧建模板（如果应用账号有模板管理权限），把 Code 填进 `msgcenter.template`。
 - `btntext` 是卡片上的按钮文字，已做成 `msgcenter.button_text`；纯文本渠道忽略它。想试「是不是加上按钮就变卡片」，填上它发一条即可。
 - `fileId`（图片文件 ID）文档写的是「为空时根据消息类型使用默认配置信息」——也就是说图文类消息缺图时中心会用默认图，不需要我们先上传。上传接口本身这份文档没写。
-- 微信/钉钉还有自己的消息类型字段（`wechatMsgType` 的 `textcard`/`news`、`dingMsgType` 的 `action_card`/`link`），走卡片时要用它们；**EIP 没有这个开关**，EIP 的外观只能靠模板/图文配置与 `btntext`。
+- 微信/钉钉还有自己的消息类型字段（`wechatMsgType` 的 `textcard`/`news`、`dingMsgType` 的 `action_card`/`link`），走卡片时要用它们：微信的类型已做成 `msgcenter.wechat_msg_type`（默认 `text`），钉钉仍固定 `text`；`news` 依赖中心侧给应用登记图文配置，没登记时整条消息会被拒（`6010623`），所以改之前先在中心确认配置。**EIP 没有这个开关**，EIP 的外观只能靠模板/图文配置与 `btntext`。
 
 ### 触发：余额为 0 导致扣费失败
 

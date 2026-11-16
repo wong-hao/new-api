@@ -33,6 +33,7 @@ const credentials = {
   token: 'token-1',
   channels: 'wechat',
   moduleId: '',
+  wechatMsgType: '',
   buttonText: '',
   template: '',
 }
@@ -126,7 +127,9 @@ describe('campus message center settings', () => {
     renderSection(credentials)
     const user = userEvent.setup()
 
-    await user.click(screen.getByRole('combobox'))
+    await user.click(
+      screen.getByRole('combobox', { name: 'Select at least one channel' })
+    )
     await user.click(await screen.findByRole('option', { name: 'EIP' }))
     // An open popup hides the rest of the page from the accessibility tree.
     await user.keyboard('{Escape}')
@@ -162,12 +165,33 @@ describe('campus message center settings', () => {
     renderSection(credentials)
     const user = userEvent.setup()
 
-    await user.click(screen.getByRole('combobox'))
+    await user.click(
+      screen.getByRole('combobox', { name: 'Select at least one channel' })
+    )
     await user.keyboard('{Backspace}')
     await user.keyboard('{Escape}')
 
     expect(screen.getByText('Select at least one channel')).toBeInTheDocument()
     expect(saveButton()).toBeDisabled()
+  })
+
+  it('the WeChat message type a site picks is saved', async () => {
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true } })
+    renderSection(credentials)
+    const user = userEvent.setup()
+
+    await user.click(screen.getByLabelText('WeChat message type'))
+    await user.click(await screen.findByRole('option', { name: 'News card' }))
+    await user.keyboard('{Escape}')
+    await user.click(saveButton())
+
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put).toHaveBeenCalledWith('/api/option/', {
+      key: 'msgcenter.wechat_msg_type',
+      value: 'news',
+    })
   })
 
   it('a card button label and a template code are saved as typed', async () => {
