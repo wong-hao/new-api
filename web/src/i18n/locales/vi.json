@@ -197,7 +197,7 @@
     "A dry run reply must not exceed {{max}} bytes": "Câu trả lời để chạy thử không được vượt quá {{max}} byte",
     "A focused home for keys, balance, routing, and service health.": "Trang tổng quan tập trung cho khóa, số dư, định tuyến và trạng thái dịch vụ.",
     "A model update task is already running or queued. Cannot start this manual task": "Đã có tác vụ cập nhật mô hình đang chạy hoặc đang chờ. Không thể bắt đầu tác vụ thủ công này",
-    "A news card needs a news configuration registered on the centre; a text card shows the button text above": "Thẻ bài viết cần cấu hình bài viết được đăng ký trên trung tâm; thẻ văn bản hiển thị chữ trên nút ở trên",
+    "A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above": "Thẻ bài viết dùng ảnh mặc định của trung tâm trừ khi trung tâm đã đăng ký cấu hình bài viết riêng; thẻ văn bản hiển thị chữ trên nút ở trên",
     "A number": "Một chữ số",
     "A Passkey created for www.example.com cannot be used on example.com. Keep the old website available so users can still verify there.": "Khóa truy cập tạo cho www.example.com không thể dùng trên example.com. Hãy duy trì trang web cũ để người dùng vẫn có thể xác minh tại đó.",
     "A plugin can read channel keys and change what is sent upstream. Check its code and changes before activating it.": "Plugin có thể đọc khóa của kênh và thay đổi nội dung gửi lên nhà cung cấp. Hãy kiểm tra mã và các thay đổi trước khi kích hoạt.",

@@ -197,7 +197,7 @@
     "A dry run reply must not exceed {{max}} bytes": "La réponse de simulation ne doit pas dépasser {{max}} octets",
     "A focused home for keys, balance, routing, and service health.": "Un accueil dédié aux clés, au solde, au routage et à l'état du service.",
     "A model update task is already running or queued. Cannot start this manual task": "Une tâche de mise à jour des modèles est déjà en cours ou en attente. Impossible de lancer cette tâche manuelle",
-    "A news card needs a news configuration registered on the centre; a text card shows the button text above": "Une carte article exige une configuration d'articles enregistrée sur le centre ; une carte texte affiche le texte du bouton ci-dessus",
+    "A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above": "Une carte article utilise l'image par défaut du centre sauf si une configuration d'articles personnalisée y est enregistrée ; une carte texte affiche le texte du bouton ci-dessus",
     "A number": "Un chiffre",
     "A Passkey created for www.example.com cannot be used on example.com. Keep the old website available so users can still verify there.": "Une clé d’accès créée pour www.example.com ne fonctionne pas sur example.com. Gardez l’ancien site accessible pour permettre aux utilisateurs de s’y authentifier.",
     "A plugin can read channel keys and change what is sent upstream. Check its code and changes before activating it.": "Un plugin peut lire les clés des canaux et modifier ce qui est envoyé au fournisseur. Vérifiez son code et ses changements avant de l’activer.",

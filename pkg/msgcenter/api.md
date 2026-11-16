@@ -210,7 +210,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 | `msgcenter.token` | 令牌 |
 | `msgcenter.channels` | 本站点发送使用的渠道，逗号分隔，取值 `wechat`、`dingding`、`eip`、`app`；留空只用 `wechat` |
 | `msgcenter.module_id` | EIP 的消息来源，取值 `COOPERATE`、`ANNOUNCEMENT`、`SURVEY`、`MEET`、`JOIN_APP`；选中 eip 时必填 |
-| `msgcenter.wechat_msg_type` | 微信渠道的消息类型：`text`（默认）、`news`（图文）、`textcard`（文本卡片）；`news` 需要中心侧已给应用登记图文配置，否则整条消息被拒（`6010623`） |
+| `msgcenter.wechat_msg_type` | 微信渠道的消息类型：`text`（默认）、`news`（图文）、`textcard`（文本卡片）；`news` 没登记自定义图文配置时用中心的默认图文配置（默认图片），只有中心连默认配置都查不到时才整条消息被拒（`6010623`） |
 | `msgcenter.button_text` | 卡片式消息上的按钮文字，例如「查看详情」；纯文本渠道会忽略 |
 | `msgcenter.template` | 按渠道给模板 Code 的 JSON 对象，例如 `{"eip":"someCode"}`；模板本身在消息中心里，中心没登记的 Code 会被拒（`6010628`），所以没建好之前留空 |
 
@@ -234,8 +234,8 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 
 - `template` 只是「渠道 → 模板 Code」的 JSON（`{"eip":"someCode"}`），模板本体存在中心侧；中心没登记的 Code 直接拒（`6010628`）。所以「自己写模板」能做的部分是：在中心侧建模板（如果应用账号有模板管理权限），把 Code 填进 `msgcenter.template`。
 - `btntext` 是卡片上的按钮文字，已做成 `msgcenter.button_text`；纯文本渠道忽略它。想试「是不是加上按钮就变卡片」，填上它发一条即可。
-- `fileId`（图片文件 ID）文档写的是「为空时根据消息类型使用默认配置信息」——也就是说图文类消息缺图时中心会用默认图，不需要我们先上传。上传接口本身这份文档没写。
-- 微信/钉钉还有自己的消息类型字段（`wechatMsgType` 的 `textcard`/`news`、`dingMsgType` 的 `action_card`/`link`），走卡片时要用它们：微信的类型已做成 `msgcenter.wechat_msg_type`（默认 `text`），钉钉仍固定 `text`；`news` 依赖中心侧给应用登记图文配置，没登记时整条消息会被拒（`6010623`），所以改之前先在中心确认配置。**EIP 没有这个开关**，EIP 的外观只能靠模板/图文配置与 `btntext`。
+- `fileId`（图片文件 ID）文档写的是「为空时根据消息类型使用默认配置信息」——实测图文卡片在 `fileId` 为空时用的是中心侧默认图文配置，横幅是中心的「流程服务」默认图，不需要我们先上传。要换成自定义图片，由中心上传图片并返回 `fileId`，再填进这里；上传接口本身这份文档没写，站点配置暂未提供该项。
+- 微信/钉钉还有自己的消息类型字段（`wechatMsgType` 的 `textcard`/`news`、`dingMsgType` 的 `action_card`/`link`），走卡片时要用它们：微信的类型已做成 `msgcenter.wechat_msg_type`（默认 `text`），钉钉仍固定 `text`；`news` 用中心的默认图文配置（默认图片），登记了自定义图文配置时替换，只有中心连默认配置都查不到时整条消息才会被拒（`6010623`）。**EIP 没有这个开关**，EIP 的外观只能靠模板/图文配置与 `btntext`。
 
 ### 触发：余额为 0 导致扣费失败
 

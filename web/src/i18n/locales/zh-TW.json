@@ -197,7 +197,7 @@
     "A dry run reply must not exceed {{max}} bytes": "試跑的回覆不能超過 {{max}} 位元組",
     "A focused home for keys, balance, routing, and service health.": "集中展示金鑰、餘額、路由和服務健康狀態。",
     "A model update task is already running or queued. Cannot start this manual task": "已有模型更新任務正在執行或等待中，無法啟動本次手動任務",
-    "A news card needs a news configuration registered on the centre; a text card shows the button text above": "圖文卡片需要訊息中心已登記圖文設定；文字卡片會顯示上方的按鈕文字",
+    "A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above": "圖文卡片預設使用訊息中心的預設圖片，中心登記了自訂圖文設定時才替換；文字卡片會顯示上方的按鈕文字",
     "A number": "包含數字",
     "A Passkey created for www.example.com cannot be used on example.com. Keep the old website available so users can still verify there.": "為 www.example.com 建立的通行金鑰無法在 example.com 使用。請保留舊網站，讓使用者仍能在該網站驗證。",
     "A plugin can read channel keys and change what is sent upstream. Check its code and changes before activating it.": "外掛可以讀取渠道金鑰，並修改發往上游的內容。啟用前請檢查它的程式碼和變更。",

@@ -396,7 +396,7 @@ export function MessageCenterSettingsSection({
                       </Select>
                       <FormDescription>
                         {t(
-                          'A news card needs a news configuration registered on the centre; a text card shows the button text above'
+                          'A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above'
                         )}
                       </FormDescription>
                       <FormMessage />

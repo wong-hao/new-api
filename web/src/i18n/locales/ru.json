@@ -197,7 +197,7 @@
     "A dry run reply must not exceed {{max}} bytes": "Ответ для пробного запуска не должен превышать {{max}} байт",
     "A focused home for keys, balance, routing, and service health.": "Единый экран для ключей, баланса, маршрутов и состояния сервиса.",
     "A model update task is already running or queued. Cannot start this manual task": "Задача обновления моделей уже выполняется или ожидает в очереди. Невозможно запустить эту ручную задачу",
-    "A news card needs a news configuration registered on the centre; a text card shows the button text above": "Карточка-статья требует зарегистрированной на центре конфигурации статей; текстовая карточка показывает текст кнопки выше",
+    "A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above": "Карточка-статья использует изображение центра по умолчанию, если на центре не зарегистрирована своя конфигурация статей; текстовая карточка показывает текст кнопки выше",
     "A number": "Цифра",
     "A Passkey created for www.example.com cannot be used on example.com. Keep the old website available so users can still verify there.": "Ключ доступа, созданный для www.example.com, не работает на example.com. Сохраните доступ к прежнему сайту, чтобы пользователи могли проходить проверку на нём.",
     "A plugin can read channel keys and change what is sent upstream. Check its code and changes before activating it.": "Плагин может читать ключи каналов и менять то, что отправляется провайдеру. Проверьте его код и изменения перед активацией.",

@@ -197,7 +197,7 @@
     "A dry run reply must not exceed {{max}} bytes": "ドライランの応答は {{max}} バイト以内にしてください",
     "A focused home for keys, balance, routing, and service health.": "キー、残高、ルーティング、サービス状態を集約したホームです。",
     "A model update task is already running or queued. Cannot start this manual task": "モデル更新タスクが既に実行中または待機中のため、この手動タスクを開始できません",
-    "A news card needs a news configuration registered on the centre; a text card shows the button text above": "記事カードはメッセージセンターに記事設定が必要です。テキストカードは上のボタンテキストを表示します",
+    "A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above": "記事カードは、メッセージセンターに独自の記事設定が登録されていない限り、センターの既定画像を使用します。テキストカードは上のボタンテキストを表示します",
     "A number": "数字",
     "A Passkey created for www.example.com cannot be used on example.com. Keep the old website available so users can still verify there.": "www.example.com で作成したパスキーは example.com では使用できません。ユーザーが引き続き認証できるよう、以前のウェブサイトを維持してください。",
     "A plugin can read channel keys and change what is sent upstream. Check its code and changes before activating it.": "プラグインはチャネルのキーを読み取り、上流に送る内容を変更できます。有効化する前にコードと変更点を確認してください。",

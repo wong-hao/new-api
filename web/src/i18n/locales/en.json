@@ -197,7 +197,7 @@
     "A dry run reply must not exceed {{max}} bytes": "A dry run reply must not exceed {{max}} bytes",
     "A focused home for keys, balance, routing, and service health.": "A focused home for keys, balance, routing, and service health.",
     "A model update task is already running or queued. Cannot start this manual task": "A model update task is already running or queued. Cannot start this manual task",
-    "A news card needs a news configuration registered on the centre; a text card shows the button text above": "A news card needs a news configuration registered on the centre; a text card shows the button text above",
+    "A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above": "A news card uses the default image of the centre unless a custom news configuration is registered there; a text card shows the button text above",
     "A number": "A number",
     "A Passkey created for www.example.com cannot be used on example.com. Keep the old website available so users can still verify there.": "A Passkey created for www.example.com cannot be used on example.com. Keep the old website available so users can still verify there.",
     "A plugin can read channel keys and change what is sent upstream. Check its code and changes before activating it.": "A plugin can read channel keys and change what is sent upstream. Check its code and changes before activating it.",
