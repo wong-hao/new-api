@@ -72,13 +72,13 @@ func sendCampusNotify(userId int, userSetting dto.UserSetting, data dto.Notify) 
 	}
 	// A campus message lands in a shared portal or app next to messages from other
 	// systems, so it names the site that sent it, the way email already goes out in the
-	// site's name. The title carries the name too: a channel that renders a card may show
-	// only the title, and a template may render neither our content nor our title, so the
-	// name goes wherever this application controls the text.
+	// site's name. A channel that renders a card shows the title as the card header and a
+	// template may render only the title, so the title is the site's name alone; the body
+	// carries the name and the notice for channels that render no title at all.
 	title := data.Title
 	if siteName := strings.TrimSpace(common.SystemName); siteName != "" {
 		signature := "【" + siteName + "】"
-		title = signature + title
+		title = signature
 		content = signature + content
 	}
 

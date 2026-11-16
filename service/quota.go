@@ -496,7 +496,7 @@ func checkAndSendQuotaNotify(relayInfo *relaycommon.RelayInfo, quota int, preCon
 		}
 		lang := userSetting.Language
 		prompt := i18n.Translate(lang, i18n.MsgNotifyQuotaLowTitle)
-		content, values := quotaNotifyContent(lang, userSetting.NotifyType, prompt, logger.FormatQuota(balanceAfter))
+		content, values := quotaNotifyContent(lang, deliveryMethod(userSetting), prompt, logger.FormatQuota(balanceAfter))
 		err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, prompt, content, values))
 		if err != nil {
 			common.SysError(common.LogText("failed to send quota notify to user %d: %s", relayInfo.UserId, err.Error()))
@@ -523,7 +523,7 @@ func checkAndSendSubscriptionQuotaNotify(relayInfo *relaycommon.RelayInfo) {
 
 		lang := userSetting.Language
 		prompt := i18n.Translate(lang, i18n.MsgNotifySubscriptionQuotaLowTitle)
-		content, values := quotaNotifyContent(lang, userSetting.NotifyType, prompt, logger.FormatQuota(int(remaining)))
+		content, values := quotaNotifyContent(lang, deliveryMethod(userSetting), prompt, logger.FormatQuota(int(remaining)))
 		if err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, prompt, content, values)); err != nil {
 			common.SysError(common.LogText("failed to send subscription quota notify to user %d: %s", relayInfo.UserId, err.Error()))
 		}
@@ -551,8 +551,8 @@ func quotaReminderDue(userSetting dto.UserSetting, before int64, after int64) bo
 }
 
 // quotaNotifyContent renders a low-quota notice in the user's saved language.
-// Bark and Gotify get plain text; email and webhook get HTML with the top-up
-// link. values stay in the notify payload for webhook receivers.
+// Bark, Gotify and the message center get plain text; email and webhook get HTML
+// with the top-up link. values stay in the notify payload for webhook receivers.
 func quotaNotifyContent(lang string, notifyType string, prompt string, remaining string) (string, []any) {
 	topUpLink := PaymentReturnURL("/wallet")
 	switch notifyType {

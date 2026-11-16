@@ -342,7 +342,9 @@ func TestCampusNotifyGoesToTheMessageCenter(t *testing.T) {
 			payload, ok := sent[0]["payload"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, tc.casId, payload["intReceiver"])
-			assert.Equal(t, "【"+common.SystemName+"】额度提醒", payload["title"])
+			// A card shows the title as its header, so the title is the site's name alone
+			// and the notice itself goes in the body.
+			assert.Equal(t, "【"+common.SystemName+"】", payload["title"])
 			assert.Equal(t, "【"+common.SystemName+"】请及时充值", payload["content"])
 			assert.Equal(t, "0", payload["cron"])
 			assert.Equal(t, tc.wantWeChatType, payload["wechatMsgType"])
@@ -693,8 +695,36 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 		"the notice should name its site: %v", sent[0]["content"])
 	title, ok := sent[0]["title"].(string)
 	require.True(t, ok)
-	assert.True(t, strings.HasPrefix(title, "【示例站点】"),
-		"the title should name its site too: %v", sent[0]["title"])
+	assert.Equal(t, "【示例站点】", title)
+
+	// A user who never chose a method falls back to the message center, and the body
+	// must then be the plain-text rendering, not the HTML one email would get: the
+	// center shows the body verbatim, tags included.
+	defaultUser := &model.User{Username: "broke-default", CasId: "20200010", Quota: 0, Status: common.UserStatusEnabled, AffCode: "broke-default"}
+	require.NoError(t, database.Create(defaultUser).Error)
+	defaultRelayInfo := &relaycommon.RelayInfo{
+		UserId: defaultUser.Id,
+		UserSetting: dto.UserSetting{
+			QuotaWarningEnabled: &off,
+			BillingPreference:   "wallet_only",
+		},
+		OriginModelName: "test-model",
+	}
+	apiErr = PreConsumeBilling(notifyTestContext(t), 1000, defaultRelayInfo)
+	require.NotNil(t, apiErr)
+	assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
+
+	require.Eventually(t, func() bool {
+		mutex.Lock()
+		defer mutex.Unlock()
+		return len(sent) == 2
+	}, 2*time.Second, 10*time.Millisecond)
+	content, ok = sent[1]["content"].(string)
+	require.True(t, ok)
+	assert.True(t, strings.HasPrefix(content, "【示例站点】"),
+		"the notice should name its site: %v", content)
+	assert.NotContains(t, content, "<a ", "the center renders the body verbatim: %v", content)
+	assert.NotContains(t, content, "<br", "the center renders the body verbatim: %v", content)
 }
 
 // The message center becomes the default method only once the site has configured
