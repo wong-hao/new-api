@@ -73,14 +73,17 @@ func PreConsumeBilling(c *gin.Context, preConsumedQuota int, relayInfo *relaycom
 // reminder in quota.go cannot cover: that one fires after a charge has already
 // succeeded, so a user with no balance to charge never hears from it.
 //
-// The reminder goes out through the recipient's own notification method, and it is not
-// gated on the low-balance switches: those ask for at most one notice when a balance
-// crosses a threshold, while this one reports a request that already failed, so a user
-// who chose the message center has to receive it there. Its own notification type gives
-// it its own limit budget, so a low-balance reminder cannot use up the one that
-// reaches the user whose key has stopped working. It runs in the background and never
-// affects the billing result or the error the client receives.
+// It follows the site's reminder setting but not the user's: the site switch decides
+// whether this site sends balance notices at all, while the user's switch only asks for
+// at most one notice when a balance crosses a threshold. A user who chose the message
+// center receives it there. Its own notification type gives it its own limit budget, so
+// a low-balance reminder cannot use up the one that reaches the user whose key has
+// stopped working. It runs in the background and never affects the billing result or
+// the error the client receives.
 func notifyEmptyWalletRejection(apiErr *types.NewAPIError, relayInfo *relaycommon.RelayInfo) {
+	if !common.QuotaRemindEnabled {
+		return
+	}
 	if apiErr == nil || relayInfo == nil || relayInfo.IsPlayground || relayInfo.UserId == 0 {
 		return
 	}

@@ -421,6 +421,16 @@ export function NotificationTab({
                       </p>
                     </SettingsControlChildren>
                   )}
+                  <SettingsSwitchField
+                    controlId='quotaEmptyNotify'
+                    label={t('Zero balance notice')}
+                    description={t(
+                      'Sent when a request is rejected because the balance is 0 or negative. It cannot be turned off separately.'
+                    )}
+                    checked
+                    disabled
+                    onCheckedChange={() => undefined}
+                  />
                 </>
               )}
               {isAdmin && (

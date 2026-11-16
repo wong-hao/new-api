@@ -363,6 +363,10 @@ func TestCampusNotifyGoesToTheMessageCenter(t *testing.T) {
 func TestRejectedRequestWithEmptyBalanceNotifiesTheUser(t *testing.T) {
 	database := newNotifyTestDB(t)
 
+	previousRemind := common.QuotaRemindEnabled
+	t.Cleanup(func() { common.QuotaRemindEnabled = previousRemind })
+	common.QuotaRemindEnabled = true
+
 	previousClient, previousWorker := httpClient, system_setting.WorkerUrl
 	fetch := system_setting.GetFetchSetting()
 	previousFetch := *fetch
@@ -420,6 +424,14 @@ func TestRejectedRequestWithEmptyBalanceNotifiesTheUser(t *testing.T) {
 	// A balance that simply cannot cover this request is not a zero balance.
 	require.NoError(t, database.Model(&model.User{}).Where("id = ?", user.Id).Update("quota", 5000).Error)
 	apiErr = PreConsumeBilling(notifyTestContext(t), 900000, relayInfo)
+	require.NotNil(t, apiErr)
+	assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
+	require.Never(t, func() bool { return countReceived() > 1 }, 300*time.Millisecond, 50*time.Millisecond)
+
+	// The site switch turns the notice off along with the threshold reminders.
+	require.NoError(t, database.Model(&model.User{}).Where("id = ?", user.Id).Update("quota", 0).Error)
+	common.QuotaRemindEnabled = false
+	apiErr = PreConsumeBilling(notifyTestContext(t), 1000, relayInfo)
 	require.NotNil(t, apiErr)
 	assert.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
 	require.Never(t, func() bool { return countReceived() > 1 }, 300*time.Millisecond, 50*time.Millisecond)
@@ -630,8 +642,8 @@ func TestCampusNotifyCarriesTheCardFields(t *testing.T) {
 }
 
 // A user who chose the message center has to hear a rejected request there: the
-// low-balance switches ask for at most one notice when a balance crosses a
-// threshold, so they do not govern a notice about a request that already failed.
+// user-level switch asks for at most one notice when a balance crosses a threshold,
+// so it does not govern a notice about a request that already failed.
 func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 	database := newNotifyTestDB(t)
 
@@ -645,8 +657,8 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 		common.SystemName = previousSystemName
 	})
 	*settings = system_setting.MessageCenterSettings{Enabled: true, AppID: "app-1", Token: "token-1"}
-	// The site and the user both turned balance reminders off.
-	common.QuotaRemindEnabled = false
+	// The user turned their own balance reminder off; the site keeps sending notices.
+	common.QuotaRemindEnabled = true
 	common.SystemName = "示例站点"
 	off := false
 

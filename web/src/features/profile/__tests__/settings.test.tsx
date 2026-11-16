@@ -291,12 +291,18 @@ describe('notifications a user receives', () => {
     expect(
       screen.queryByRole('switch', { name: 'Low balance reminder' })
     ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('switch', { name: 'Zero balance notice' })
+    ).not.toBeInTheDocument()
   })
 
   it('an admin on a site with reminders off keeps only the administrator notifications', () => {
     renderNotificationTab(ROLE.ADMIN, { notify_type: 'email' }, false)
     expect(
       screen.queryByRole('switch', { name: 'Low balance reminder' })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('switch', { name: 'Zero balance notice' })
     ).not.toBeInTheDocument()
     expect(
       screen.getByRole('switch', { name: 'Channel notifications' })
@@ -341,6 +347,18 @@ describe('notifications a user receives', () => {
     ).not.toBeInTheDocument()
     await save(onUpdate)
     expect(sentBody(put)).toMatchObject({ quota_warning_enabled: false })
+  })
+
+  it('the zero balance notice is shown as always on and cannot be switched off', async () => {
+    const put = mockSave(ROLE.USER, { notify_type: 'email' })
+    const onUpdate = renderNotificationTab(ROLE.USER, { notify_type: 'email' })
+    const notice = screen.getByRole('switch', { name: 'Zero balance notice' })
+    expect(notice).toBeChecked()
+    expect(notice).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(notice)
+    expect(notice).toBeChecked()
+    await save(onUpdate)
+    expect(sentBody(put)).not.toHaveProperty('quota_warning_enabled')
   })
 
   it('switches root never touched stay unset when it saves', async () => {
