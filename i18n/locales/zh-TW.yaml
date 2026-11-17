@@ -78,11 +78,20 @@ notify.quota_low_title: "您的額度即將用盡"
 notify.subscription_quota_low_title: "您的訂閱額度即將用盡"
 notify.quota_low_bark: "{{.Prompt}}，剩餘額度：{{.Quota}}，請及時儲值"
 notify.quota_low_gotify: "{{.Prompt}}，目前剩餘額度為 {{.Quota}}，請及時儲值。"
-notify.quota_low_campus: "{{.Prompt}}，目前剩餘額度為 {{.Quota}}，為了不影響您的使用，請及時儲值。儲值連結：{{.Link}}"
+notify.quota_low_campus: "目前剩餘額度為 {{.Quota}}，儲值連結：{{.Link}}"
 notify.quota_low_email: "{{.Prompt}}，目前剩餘額度為 {{.Quota}}，為了不影響您的使用，請及時儲值。<br/>儲值連結：<a href='{{.Link}}'>{{.Link}}</a>"
 notify.quota_empty_title: "餘額為 0，請求未扣費成功"
 notify.quota_empty_text: "您的餘額為 0，呼叫模型 {{.Model}} 的請求因餘額不足未能完成。請儲值後重試：{{.Link}}"
 notify.quota_empty_email: "您的餘額為 0，呼叫模型 {{.Model}} 的請求因餘額不足未能完成，為了不影響您的使用，請及時儲值。<br/>儲值連結：<a href='{{.Link}}'>{{.Link}}</a>"
+notify.quota_empty_campus: "呼叫模型 {{.Model}} 的請求因餘額不足未能完成，儲值連結：{{.Link}}"
+
+# Campus message center notices, shown as the portal's to-do item
+notify.campus_sender: "系統管理員"
+notify.campus_todo_title: "您好，您收到了{{.Sender}}發起的事項【{{.Label}}】，請及時辦理"
+notify.campus_todo_content: "您好，您收到了{{.Sender}}發起的事項【{{.Label}}】。{{.Detail}}，請及時辦理。"
+notify.campus_item_quota_low: "餘額即將用盡"
+notify.campus_item_subscription_low: "訂閱額度即將用盡"
+notify.campus_item_quota_empty: "餘額已用盡"
 
 # Channel notices sent to administrators who receive them and to model update watchers
 channel.notify_disabled_subject: "管道「{{.Name}}」（#{{.Id}}）已被停用"

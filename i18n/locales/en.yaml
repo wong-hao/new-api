@@ -77,11 +77,20 @@ notify.quota_low_title: "Your quota is running low"
 notify.subscription_quota_low_title: "Your subscription quota is running low"
 notify.quota_low_bark: "{{.Prompt}}, remaining quota: {{.Quota}}. Please top up soon"
 notify.quota_low_gotify: "{{.Prompt}}. Your remaining quota is {{.Quota}}. Please top up soon."
-notify.quota_low_campus: "{{.Prompt}}. Your remaining quota is {{.Quota}}. Top up soon to keep using the service. Top-up link: {{.Link}}"
+notify.quota_low_campus: "Your remaining quota is {{.Quota}}. Top-up link: {{.Link}}."
 notify.quota_low_email: "{{.Prompt}}. Your remaining quota is {{.Quota}}. Top up soon to keep using the service.<br/>Top-up link: <a href='{{.Link}}'>{{.Link}}</a>"
 notify.quota_empty_title: "Zero balance: the request could not be charged"
 notify.quota_empty_text: "Your balance is 0, so the request for model {{.Model}} could not be charged. Top up and try again: {{.Link}}"
 notify.quota_empty_email: "Your balance is 0, so the request for model {{.Model}} could not be charged. To keep using the service, top up soon.<br/>Top-up link: <a href='{{.Link}}'>{{.Link}}</a>"
+notify.quota_empty_campus: "The request for model {{.Model}} could not be completed because the balance is 0. Top-up link: {{.Link}}."
+
+# Campus message center notices, shown as the portal's to-do item
+notify.campus_sender: "the system administrator"
+notify.campus_todo_title: "Hello, you have received an item from {{.Sender}}: 【{{.Label}}】. Please handle it promptly."
+notify.campus_todo_content: "Hello, you have received an item from {{.Sender}}: 【{{.Label}}】. {{.Detail}} Please handle it promptly."
+notify.campus_item_quota_low: "balance running low"
+notify.campus_item_subscription_low: "subscription quota running low"
+notify.campus_item_quota_empty: "balance used up"
 
 # Channel notices sent to administrators who receive them and to model update watchers
 channel.notify_disabled_subject: "Channel \"{{.Name}}\" (#{{.Id}}) has been disabled"

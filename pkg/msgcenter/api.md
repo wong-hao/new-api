@@ -226,7 +226,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 - **每个渠道各有必填字段**，发送前按渠道列表补齐，否则整条消息会被拒：`wechat` → `wechatMsgType`（取站点配置 `msgcenter.wechat_msg_type`，默认 `text`）、`dingding` → `dingMsgType`（用 `text`）、`eip` → `moduleID`（取站点配置，没配就把 eip 从本次发送里去掉）、`app` → 只需学工号。
 - **收件人**：该用户的 `User.CasId`，即 CAS 登录的统一账号（学工号）。没有绑定过 CAS 的账号（例如 root）不发，记日志跳过。
 - 微信消息类型由站点配置 `msgcenter.wechat_msg_type` 决定（默认 `text`，另可选 `news`、`textcard`），充值链接写在正文和 `pcUrl`/`mobileUrl` 里；`fileId`、`sms`/`email` 渠道本次不使用（`eip` 已可发，见上）。
-- **标题只写【系统名称】，正文以【系统名称】开头**（`common.SystemName`，即控制台「系统信息 → 系统名称」；邮件发送人也是用它）。校内消息和别的系统的通知混在同一个门户/会话里，收件人得知道这条来自哪里。卡片把标题当头部显示，所以标题只放站名，通知内容放在描述里；纯文本渠道（微信 `text`、钉钉 `text`）不显示标题，正文里的站名就是唯一来源。接口本身没有「发送方名称」字段，应用的显示名、卡片横幅都来自消息中心侧的模板/图文配置。
+- **标题和正文都按校内门户的「待办事项」格式**：`您好，您收到了<发起人>发起的事项【<系统名称>-<事项>】，请及时办理`。发起人是固定的「系统管理员」（`notify.campus_sender`），系统名称取 `common.SystemName`（控制台「系统信息 → 系统名称」，邮件发送人也是用它）；事项名就是通知自己的标题——余额提醒是「余额即将用尽/订阅额度即将用尽」，余额为 0 是「余额已用尽」，通道通知等用它们各自的标题，所以本站通知和别的系统混在同一个门户里长得一样。标题只放这一句，正文重复这句再跟细节。拼接在 `service/msgcenter_notify.go` 统一完成。
 
 ### 卡片式外观（模板）
 
@@ -245,7 +245,7 @@ curl -s http://<base>/htmq/sendMsg -H 'appId: <appId>' -H 'token: <token>' \
 - 投递：走用户自己选的通知方式（`NotifyUser`）。
 - 独立限流：`Notify.Type` 用 `quota_empty`（不是低额度提醒的 `quota_exceed`），因此有自己的一份 `CheckNotificationLimit` 预算（默认每用户 2 条 / 10 分钟），不会被低额度提醒用掉；余额为 0 的客户端重试也不会刷出成串消息。
 - 异步（`gopool.Go`）、只读：不阻塞响应、不参与任何 quota 运算，失败只记 `SysError`。
-- 文案：`i18n/locales/{en,zh-CN,zh-TW}.yaml` 的 `notify.quota_empty_*`，按用户语言渲染；格式按**实际投递方式**（`deliveryMethod`）选——校内消息中心与 Bark/Gotify 用纯文本，email/webhook 用带链接的 HTML。不能用原始 `UserSetting.NotifyType`：它为空时会让默认走消息中心的用户收到 HTML 文案，卡片里会显示字面量 `<a href=...>`。
+- 文案：`i18n/locales/{en,zh-CN,zh-TW}.yaml` 的 `notify.quota_empty_*`，按用户语言渲染；格式按**实际投递方式**（`deliveryMethod`）选——校内消息中心与 Bark/Gotify 用纯文本，email/webhook 用带链接的 HTML。校内消息中心只取 `notify.quota_empty_campus` 的细节部分，标题和「您好，您收到了…」那句由 `service/msgcenter_notify.go` 统一拼。不能用原始 `UserSetting.NotifyType`：它为空时会让默认走消息中心的用户收到 HTML 文案，卡片里会显示字面量 `<a href=...>`。
 - 未覆盖：已有会话上的补预扣失败（图片调价、任务换更贵渠道时 `Billing.Reserve`）不触发——余额为 0 的用户首次预扣已经失败，走不到那里。
 
 ### 为什么不用 SSRF 防护客户端

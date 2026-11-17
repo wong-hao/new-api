@@ -342,10 +342,20 @@ func TestCampusNotifyGoesToTheMessageCenter(t *testing.T) {
 			payload, ok := sent[0]["payload"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, tc.casId, payload["intReceiver"])
-			// A card shows the title as its header, so the title is the site's name alone
-			// and the notice itself goes in the body.
-			assert.Equal(t, "【"+common.SystemName+"】", payload["title"])
-			assert.Equal(t, "【"+common.SystemName+"】请及时充值", payload["content"])
+			// The centre lists messages as to-do items, so the card header names the
+			// sender, the site and the notice, and the body repeats that line before
+			// the notice's own detail.
+			label := "【" + common.SystemName + "-额度提醒】"
+			sender := i18n.Translate("", i18n.MsgCampusSender)
+			title, ok := payload["title"].(string)
+			require.True(t, ok)
+			assert.Contains(t, title, label)
+			assert.Contains(t, title, sender)
+			content, ok := payload["content"].(string)
+			require.True(t, ok)
+			assert.Contains(t, content, label)
+			assert.Contains(t, content, sender)
+			assert.Contains(t, content, "请及时充值")
 			assert.Equal(t, "0", payload["cron"])
 			assert.Equal(t, tc.wantWeChatType, payload["wechatMsgType"])
 			if tc.setting.CampusChannels == "" {
@@ -699,15 +709,16 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 		return len(sent) == 1
 	}, 2*time.Second, 10*time.Millisecond)
 	assert.Equal(t, "20200009", sent[0]["intReceiver"])
-	assert.Contains(t, sent[0]["content"], "test-model")
-	// A campus message names the site it came from, taken from the console's system name.
+	// The centre lists the notice as a to-do item: the site and the notice kind make
+	// up its label, taken from the console's system name.
+	label := "【示例站点-" + i18n.Translate("", i18n.MsgCampusItemQuotaEmpty) + "】"
 	content, ok := sent[0]["content"].(string)
 	require.True(t, ok)
-	assert.True(t, strings.HasPrefix(content, "【示例站点】"),
-		"the notice should name its site: %v", sent[0]["content"])
+	assert.Contains(t, content, label)
+	assert.Contains(t, content, "test-model")
 	title, ok := sent[0]["title"].(string)
 	require.True(t, ok)
-	assert.Equal(t, "【示例站点】", title)
+	assert.Contains(t, title, label)
 
 	// A user who never chose a method falls back to the message center, and the body
 	// must then be the plain-text rendering, not the HTML one email would get: the
@@ -733,8 +744,7 @@ func TestZeroBalanceNoticeReachesAUserWhoChoseTheMessageCenter(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 	content, ok = sent[1]["content"].(string)
 	require.True(t, ok)
-	assert.True(t, strings.HasPrefix(content, "【示例站点】"),
-		"the notice should name its site: %v", content)
+	assert.Contains(t, content, label)
 	assert.NotContains(t, content, "<a ", "the center renders the body verbatim: %v", content)
 	assert.NotContains(t, content, "<br", "the center renders the body verbatim: %v", content)
 }

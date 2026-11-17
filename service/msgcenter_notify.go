@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/msgcenter"
 	"github.com/QuantumNous/new-api/relaykit/dto"
@@ -66,21 +67,26 @@ func sendCampusNotify(userId int, userSetting dto.UserSetting, data dto.Notify) 
 		return nil
 	}
 
-	content := data.Content
+	detail := data.Content
 	for _, value := range data.Values {
-		content = strings.Replace(content, dto.ContentValueParam, fmt.Sprintf("%v", value), 1)
+		detail = strings.Replace(detail, dto.ContentValueParam, fmt.Sprintf("%v", value), 1)
 	}
 	// A campus message lands in a shared portal or app next to messages from other
-	// systems, so it names the site that sent it, the way email already goes out in the
-	// site's name. A channel that renders a card shows the title as the card header and a
-	// template may render only the title, so the title is the site's name alone; the body
-	// carries the name and the notice for channels that render no title at all.
-	title := data.Title
+	// systems, which all arrive as a to-do item. The notice is rendered the same way:
+	// the title names the sender, the site and the item, and the body repeats that line
+	// before the detail. The item is the notice's own title (for a quota notice, the
+	// balance that ran low), so the site name takes part in the item label.
+	label := data.Title
 	if siteName := strings.TrimSpace(common.SystemName); siteName != "" {
-		signature := "【" + siteName + "】"
-		title = signature
-		content = signature + content
+		label = siteName + "-" + label
 	}
+	params := map[string]any{
+		"Sender": i18n.Translate(userSetting.Language, i18n.MsgCampusSender),
+		"Label":  label,
+		"Detail": detail,
+	}
+	title := i18n.Translate(userSetting.Language, i18n.MsgCampusTodoTitle, params)
+	content := i18n.Translate(userSetting.Language, i18n.MsgCampusTodoContent, params)
 
 	topUpURL := PaymentReturnURL("/wallet")
 	message := &msgcenter.Message{

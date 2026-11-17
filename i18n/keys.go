@@ -103,9 +103,23 @@ const (
 // Empty-wallet notices: a request was rejected because the balance could not
 // cover its pre-consume, in the recipient's saved language
 const (
-	MsgNotifyQuotaEmptyTitle = "notify.quota_empty_title"
-	MsgNotifyQuotaEmptyText  = "notify.quota_empty_text"
-	MsgNotifyQuotaEmptyEmail = "notify.quota_empty_email"
+	MsgNotifyQuotaEmptyTitle  = "notify.quota_empty_title"
+	MsgNotifyQuotaEmptyText   = "notify.quota_empty_text"
+	MsgNotifyQuotaEmptyEmail  = "notify.quota_empty_email"
+	MsgNotifyQuotaEmptyCampus = "notify.quota_empty_campus"
+)
+
+// Campus message center notices: the centre lists messages as to-do items next
+// to those from other systems, so a notice is shown as
+// "您好，您收到了<发起人>发起的事项【<站点>-<事项>】，请及时办理". A campus notice
+// therefore carries the item name as its title and the detail as its content.
+const (
+	MsgCampusSender              = "notify.campus_sender"
+	MsgCampusTodoTitle           = "notify.campus_todo_title"
+	MsgCampusTodoContent         = "notify.campus_todo_content"
+	MsgCampusItemQuotaLow        = "notify.campus_item_quota_low"
+	MsgCampusItemSubscriptionLow = "notify.campus_item_subscription_low"
+	MsgCampusItemQuotaEmpty      = "notify.campus_item_quota_empty"
 )
 
 // Channel notices sent to administrators who receive them and to model update

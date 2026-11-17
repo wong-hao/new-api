@@ -495,9 +495,16 @@ func checkAndSendQuotaNotify(relayInfo *relaycommon.RelayInfo, quota int, preCon
 			return
 		}
 		lang := userSetting.Language
+		notifyType := deliveryMethod(userSetting)
 		prompt := i18n.Translate(lang, i18n.MsgNotifyQuotaLowTitle)
-		content, values := quotaNotifyContent(lang, deliveryMethod(userSetting), prompt, logger.FormatQuota(balanceAfter))
-		err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, prompt, content, values))
+		title := prompt
+		if notifyType == dto.NotifyTypeCampus {
+			// The centre shows the notice as a to-do item, whose label is the kind
+			// of notice rather than the sentence other channels lead with.
+			title = i18n.Translate(lang, i18n.MsgCampusItemQuotaLow)
+		}
+		content, values := quotaNotifyContent(lang, notifyType, prompt, logger.FormatQuota(balanceAfter))
+		err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, title, content, values))
 		if err != nil {
 			common.SysError(common.LogText("failed to send quota notify to user %d: %s", relayInfo.UserId, err.Error()))
 		}
@@ -522,9 +529,14 @@ func checkAndSendSubscriptionQuotaNotify(relayInfo *relaycommon.RelayInfo) {
 		}
 
 		lang := userSetting.Language
+		notifyType := deliveryMethod(userSetting)
 		prompt := i18n.Translate(lang, i18n.MsgNotifySubscriptionQuotaLowTitle)
-		content, values := quotaNotifyContent(lang, deliveryMethod(userSetting), prompt, logger.FormatQuota(int(remaining)))
-		if err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, prompt, content, values)); err != nil {
+		title := prompt
+		if notifyType == dto.NotifyTypeCampus {
+			title = i18n.Translate(lang, i18n.MsgCampusItemSubscriptionLow)
+		}
+		content, values := quotaNotifyContent(lang, notifyType, prompt, logger.FormatQuota(int(remaining)))
+		if err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, title, content, values)); err != nil {
 			common.SysError(common.LogText("failed to send subscription quota notify to user %d: %s", relayInfo.UserId, err.Error()))
 		}
 	})
@@ -553,6 +565,8 @@ func quotaReminderDue(userSetting dto.UserSetting, before int64, after int64) bo
 // quotaNotifyContent renders a low-quota notice in the user's saved language.
 // Bark, Gotify and the message center get plain text; email and webhook get HTML
 // with the top-up link. values stay in the notify payload for webhook receivers.
+// The message center renders the notice as a to-do item whose title names the
+// item, so its content holds only the detail shown under that title.
 func quotaNotifyContent(lang string, notifyType string, prompt string, remaining string) (string, []any) {
 	topUpLink := PaymentReturnURL("/wallet")
 	switch notifyType {
@@ -563,7 +577,7 @@ func quotaNotifyContent(lang string, notifyType string, prompt string, remaining
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowGotify, map[string]any{"Prompt": prompt, "Quota": remaining}), []any{prompt, remaining}
 	case dto.NotifyTypeCampus:
 		// 消息中心推送纯文本，链接直接写 URL
-		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowCampus, map[string]any{"Prompt": prompt, "Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink}
+		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowCampus, map[string]any{"Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink}
 	default:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaLowEmail, map[string]any{"Prompt": prompt, "Quota": remaining, "Link": topUpLink}), []any{prompt, remaining, topUpLink, topUpLink}
 	}
@@ -573,10 +587,14 @@ func quotaNotifyContent(lang string, notifyType string, prompt string, remaining
 // because the balance could not cover its pre-consume. The message center, Bark
 // and Gotify receive plain text; email and webhook receive HTML with the top-up
 // link. values keep the top-up link in the notify payload for webhook receivers.
+// The message center renders the notice as a to-do item, so its content holds only
+// the detail shown under the item title.
 func quotaEmptyNotifyContent(lang string, notifyType string, modelName string, topUpLink string) (string, []any) {
 	values := []any{modelName, topUpLink, topUpLink}
 	switch notifyType {
-	case dto.NotifyTypeBark, dto.NotifyTypeGotify, dto.NotifyTypeCampus:
+	case dto.NotifyTypeCampus:
+		return i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyCampus, map[string]any{"Model": modelName, "Link": topUpLink}), values
+	case dto.NotifyTypeBark, dto.NotifyTypeGotify:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyText, map[string]any{"Model": modelName, "Link": topUpLink}), values
 	default:
 		return i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyEmail, map[string]any{"Model": modelName, "Link": topUpLink}), values

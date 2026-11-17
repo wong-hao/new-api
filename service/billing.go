@@ -102,8 +102,14 @@ func notifyEmptyWalletRejection(apiErr *types.NewAPIError, relayInfo *relaycommo
 		}
 
 		lang := relayInfo.UserSetting.Language
+		notifyType := deliveryMethod(relayInfo.UserSetting)
 		title := i18n.Translate(lang, i18n.MsgNotifyQuotaEmptyTitle)
-		content, values := quotaEmptyNotifyContent(lang, deliveryMethod(relayInfo.UserSetting), relayInfo.OriginModelName, PaymentReturnURL("/wallet"))
+		if notifyType == dto.NotifyTypeCampus {
+			// The centre shows the notice as a to-do item, whose label is the kind
+			// of notice rather than the sentence other channels lead with.
+			title = i18n.Translate(lang, i18n.MsgCampusItemQuotaEmpty)
+		}
+		content, values := quotaEmptyNotifyContent(lang, notifyType, relayInfo.OriginModelName, PaymentReturnURL("/wallet"))
 		if err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaEmpty, title, content, values)); err != nil {
 			common.SysError(common.LogText("failed to send the empty-balance notice to user %d: %s", relayInfo.UserId, err.Error()))
 		}
