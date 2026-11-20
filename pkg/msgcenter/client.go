@@ -1,6 +1,6 @@
 // Package msgcenter is the client for the campus message center (新消息中心,
 // served under /htmq/) that delivers notices over SMS, email, WeChat, DingTalk,
-// EIP and the campus app. The wire contract is documented in api.md next to this
+// EIP and the campus app. The wire contract is documented in README.md next to this
 // file; the package only builds requests, parses responses and maps return codes,
 // and takes its base URL and credentials from the caller.
 package msgcenter

@@ -45,7 +45,7 @@ const SuccessCode = 200
 
 // Codes worth branching on: an invalid or expired appId/token, a request the
 // center rejects as incomplete, a rejected channel permission, and the daily
-// send quota. The full table lives in api.md.
+// send quota. The full table lives in README.md.
 const (
 	CodeDomainInvalid     = 6010403 // 未经授权访问 / 拒绝访问
 	CodeMissingParam      = 6010521 // 缺少必要参数
