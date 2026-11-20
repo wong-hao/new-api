@@ -1178,6 +1178,8 @@
     "Channel does not exist": "Канал не существует",
     "Channel enabled successfully": "Канал успешно включён",
     "Channel error": "Ошибка канала",
+    "Channel group list exceeds {{max}} characters": "Список групп канала превышает {{max}} символов",
+    "Channel group name is too long: {{group}}": "Слишком длинное имя группы канала: {{group}}",
     "Channel Extra Settings": "Дополнительные настройки канала",
     "Channel health": "Состояние каналов",
     "Channel health checks": "Проверки состояния каналов",

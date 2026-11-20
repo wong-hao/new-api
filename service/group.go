@@ -139,9 +139,6 @@ const (
 	// defaultUserGroup is the group every account starts in, and the one an
 	// asserted group copies its ratio from.
 	defaultUserGroup = "default"
-	// maxGroupNameLength matches users.group, a varchar(64) column: a longer name
-	// would be truncated or rejected by the database.
-	maxGroupNameLength = 64
 )
 
 // assertedGroupMutex serializes the read-modify-write that adds a group to the
@@ -164,7 +161,7 @@ func AssignAssertedGroup(user *model.User, group string) (bool, error) {
 	if group == "" {
 		return false, nil
 	}
-	if utf8.RuneCountInString(group) > maxGroupNameLength {
+	if utf8.RuneCountInString(group) > model.MaxGroupNameLength {
 		common.SysLog(common.LogText("asserted group name is too long, ignored for user %d", user.Id))
 		return false, nil
 	}

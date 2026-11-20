@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -83,6 +84,35 @@ func TestValidateChannelProxy(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestValidateChannelGroups(t *testing.T) {
+	tests := []struct {
+		name      string
+		groupList string
+		wantErr   string
+	}{
+		{name: "empty"},
+		{name: "single group", groupList: "default"},
+		{name: "spaces around separators", groupList: " default , vip "},
+		{name: "name at limit", groupList: strings.Repeat("组", model.MaxGroupNameLength)},
+		{name: "name over limit", groupList: strings.Repeat("组", model.MaxGroupNameLength+1), wantErr: "Channel group name is too long"},
+		{name: "list over limit", groupList: strings.Repeat("department-group,", 300), wantErr: "Channel group list exceeds"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateChannelGroups(test.groupList)
+			if test.wantErr != "" {
+				require.ErrorContains(t, err, test.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+
+	channel := &model.Channel{Type: constant.ChannelTypeOpenAI, Group: strings.Repeat("组", model.MaxGroupNameLength+1)}
+	require.ErrorContains(t, validateChannel(channel, false), "Channel group name is too long")
 }
 
 func TestValidateChannelRequiresNewAPIBaseURL(t *testing.T) {

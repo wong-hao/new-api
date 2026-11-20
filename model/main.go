@@ -335,6 +335,10 @@ func migrateDB() error {
 	if err := migrateTokenModelLimitsToText(); err != nil {
 		return err
 	}
+	// Widen channels.group to hold a channel's whole group list.
+	if err := migrateChannelGroupWidth(DB); err != nil {
+		return err
+	}
 	if err := migrateOptionPrimaryKey(DB); err != nil {
 		common.SysError(common.LogText("failed to migrate options primary key: %s", err.Error()))
 	}
@@ -633,6 +637,59 @@ func migrateTokenModelLimitsToText() error {
 			return fmt.Errorf("failed to migrate %s.%s to text: %w", tableName, columnName, err)
 		}
 		common.SysLog(common.LogText("Successfully migrated %s.%s to text", tableName, columnName))
+	}
+	return nil
+}
+
+// migrateChannelGroupWidth widens channels.group from the varchar(64) that held
+// a single group name to the width that holds a channel's whole comma-separated
+// group list. It is safe to run repeatedly. SQLite types carry no length limit
+// and GORM's AutoMigrate skips a varchar whose default still matches the model,
+// so this migration covers MySQL and PostgreSQL explicitly.
+func migrateChannelGroupWidth(db *gorm.DB) error {
+	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
+		return nil
+	}
+	tableName := db.NamingStrategy.TableName("Channel")
+	columnName := "group"
+	if !db.Migrator().HasTable(tableName) || !db.Migrator().HasColumn(&Channel{}, columnName) {
+		return nil
+	}
+
+	var alterSQL string
+	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
+		var column struct {
+			DataType string
+			Length   int64
+		}
+		if err := db.Raw(`SELECT data_type, coalesce(character_maximum_length, 0) AS length FROM information_schema.columns
+			WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?`,
+			tableName, columnName).Scan(&column).Error; err != nil {
+			common.SysLog(common.LogText("Warning: failed to query metadata for %s.%s: %v", tableName, columnName, err))
+		} else if column.DataType != "character varying" || column.Length >= MaxChannelGroupsLength {
+			return nil
+		}
+		alterSQL = fmt.Sprintf(`ALTER TABLE %q ALTER COLUMN %q TYPE varchar(%d)`, tableName, columnName, MaxChannelGroupsLength)
+	} else if common.UsingMainDatabase(common.DatabaseTypeMySQL) {
+		var columnType string
+		if err := db.Raw(`SELECT COLUMN_TYPE FROM information_schema.columns
+			WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+			tableName, columnName).Scan(&columnType).Error; err != nil {
+			common.SysLog(common.LogText("Warning: failed to query metadata for %s.%s: %v", tableName, columnName, err))
+		} else if !strings.HasPrefix(strings.ToLower(columnType), "varchar(") ||
+			strings.EqualFold(columnType, fmt.Sprintf("varchar(%d)", MaxChannelGroupsLength)) {
+			return nil
+		}
+		alterSQL = fmt.Sprintf("ALTER TABLE `%s` MODIFY COLUMN `%s` varchar(%d) DEFAULT 'default'", tableName, columnName, MaxChannelGroupsLength)
+	} else {
+		return nil
+	}
+
+	if alterSQL != "" {
+		if err := db.Exec(alterSQL).Error; err != nil {
+			return fmt.Errorf("failed to migrate %s.%s to varchar(%d): %w", tableName, columnName, MaxChannelGroupsLength, err)
+		}
+		common.SysLog(common.LogText("Successfully migrated %s.%s to varchar(%d)", tableName, columnName, MaxChannelGroupsLength))
 	}
 	return nil
 }

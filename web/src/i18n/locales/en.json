@@ -1178,6 +1178,8 @@
     "Channel does not exist": "Channel does not exist",
     "Channel enabled successfully": "Channel enabled successfully",
     "Channel error": "Channel error",
+    "Channel group list exceeds {{max}} characters": "Channel group list exceeds {{max}} characters",
+    "Channel group name is too long: {{group}}": "Channel group name is too long: {{group}}",
     "Channel Extra Settings": "Channel Extra Settings",
     "Channel health": "Channel health",
     "Channel health checks": "Channel health checks",

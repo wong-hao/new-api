@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -111,6 +112,159 @@ func TestBatchSetChannelTagDatabaseMatrix(t *testing.T) {
 					}
 				})
 			}
+		})
+	}
+}
+
+// TestChannelGroupListAcrossDatabaseMatrix guards the width of channels.group:
+// a channel may serve many groups, and the comma-separated list quickly exceeds
+// the 64 characters a single group name is allowed to take.
+func TestChannelGroupListAcrossDatabaseMatrix(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			var driver gorm.Dialector
+			switch dialect {
+			case "sqlite":
+				driver = sqlite.Open(filepath.Join(t.TempDir(), "channel-groups.db"))
+			case "mysql":
+				dsn := os.Getenv("TEST_MYSQL_DSN")
+				if dsn == "" {
+					t.Skip("TEST_MYSQL_DSN is not configured")
+				}
+				driver = mysql.Open(dsn)
+			case "postgres":
+				dsn := os.Getenv("TEST_POSTGRES_DSN")
+				if dsn == "" {
+					t.Skip("TEST_POSTGRES_DSN is not configured")
+				}
+				driver = postgres.Open(dsn)
+			}
+			db, err := gorm.Open(driver, &gorm.Config{NamingStrategy: schema.NamingStrategy{TablePrefix: "channel_group_test_"}})
+			require.NoError(t, err)
+			sqlDB, err := db.DB()
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				assert.NoError(t, db.Migrator().DropTable(&Ability{}, &Channel{}))
+				assert.NoError(t, sqlDB.Close())
+			})
+			require.NoError(t, db.AutoMigrate(&Channel{}, &Ability{}))
+
+			groups := make([]string, 0, 24)
+			for i := range 24 {
+				groups = append(groups, fmt.Sprintf("department-%02d-网络与信息系统中心", i))
+			}
+			groupList := strings.Join(groups, ",")
+			require.Greater(t, utf8.RuneCountInString(groupList), 64, "the list must not fit the column sized for one group name")
+
+			channel := &Channel{
+				Name:   "many groups",
+				Key:    "test-key",
+				Models: "model-a,model-b",
+				Group:  groupList,
+				Status: common.ChannelStatusEnabled,
+			}
+			require.NoError(t, db.Create(channel).Error)
+			require.NoError(t, channel.AddAbilities(db))
+
+			var stored Channel
+			require.NoError(t, db.First(&stored, channel.Id).Error)
+			assert.Equal(t, groupList, stored.Group)
+			assert.Equal(t, groups, stored.GetGroups())
+
+			var abilities []Ability
+			require.NoError(t, db.Where("channel_id = ?", channel.Id).Find(&abilities).Error)
+			require.Len(t, abilities, len(groups)*2)
+			storedAbilities := make(map[string]struct{}, len(abilities))
+			for _, ability := range abilities {
+				storedAbilities[ability.Group+"|"+ability.Model] = struct{}{}
+			}
+			for _, group := range groups {
+				for _, modelName := range []string{"model-a", "model-b"} {
+					assert.Contains(t, storedAbilities, group+"|"+modelName)
+				}
+			}
+		})
+	}
+}
+
+// TestMigrateChannelGroupWidthDatabaseMatrix covers databases created before
+// channels.group held a channel's group list: the column is narrowed back to
+// the old single-group width and must be widened again on startup without
+// losing data or repeating the alter.
+func TestMigrateChannelGroupWidthDatabaseMatrix(t *testing.T) {
+	for _, dialect := range []string{"mysql", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			var driver gorm.Dialector
+			switch dialect {
+			case "mysql":
+				dsn := os.Getenv("TEST_MYSQL_DSN")
+				if dsn == "" {
+					t.Skip("TEST_MYSQL_DSN is not configured")
+				}
+				driver = mysql.Open(dsn)
+			case "postgres":
+				dsn := os.Getenv("TEST_POSTGRES_DSN")
+				if dsn == "" {
+					t.Skip("TEST_POSTGRES_DSN is not configured")
+				}
+				driver = postgres.Open(dsn)
+			}
+			db, err := gorm.Open(driver, &gorm.Config{NamingStrategy: schema.NamingStrategy{TablePrefix: "channel_group_migrate_test_"}})
+			require.NoError(t, err)
+			sqlDB, err := db.DB()
+			require.NoError(t, err)
+			previousDB, previousType := DB, common.MainDatabaseType()
+			DB = db
+			common.SetMainDatabaseType(common.DatabaseType(dialect))
+			t.Cleanup(func() {
+				DB = previousDB
+				common.SetMainDatabaseType(previousType)
+				assert.NoError(t, db.Migrator().DropTable(&Ability{}, &Channel{}))
+				assert.NoError(t, sqlDB.Close())
+			})
+			require.NoError(t, db.AutoMigrate(&Channel{}, &Ability{}))
+
+			table := db.NamingStrategy.TableName("Channel")
+			if dialect == "mysql" {
+				require.NoError(t, db.Exec(fmt.Sprintf("ALTER TABLE `%s` MODIFY COLUMN `group` varchar(64) DEFAULT 'default'", table)).Error)
+			} else {
+				require.NoError(t, db.Exec(fmt.Sprintf(`ALTER TABLE %q ALTER COLUMN "group" TYPE varchar(64)`, table)).Error)
+			}
+			legacy := &Channel{Name: "legacy", Key: "test-key", Models: "model-a", Group: "教学单位", Status: common.ChannelStatusEnabled}
+			require.NoError(t, db.Create(legacy).Error)
+
+			require.NoError(t, migrateChannelGroupWidth(db))
+
+			columns, err := db.Migrator().ColumnTypes(&Channel{})
+			require.NoError(t, err)
+			var groupLength int64
+			for _, column := range columns {
+				if column.Name() == "group" {
+					length, ok := column.Length()
+					require.True(t, ok)
+					groupLength = length
+				}
+			}
+			assert.EqualValues(t, MaxChannelGroupsLength, groupLength)
+			var stored Channel
+			require.NoError(t, db.First(&stored, legacy.Id).Error)
+			assert.Equal(t, "教学单位", stored.Group)
+
+			recorder := &migrationSQLRecorder{}
+			require.NoError(t, migrateChannelGroupWidth(db.Session(&gorm.Session{Logger: recorder})))
+			assert.Empty(t, recorder.schemaMutations(), "repeated startup must not alter a widened column")
+
+			groups := make([]string, 0, 24)
+			for i := range 24 {
+				groups = append(groups, fmt.Sprintf("department-%02d-网络与信息系统中心", i))
+			}
+			require.NoError(t, db.Create(&Channel{
+				Name:   "many groups",
+				Key:    "test-key-2",
+				Models: "model-a",
+				Group:  strings.Join(groups, ","),
+				Status: common.ChannelStatusEnabled,
+			}).Error)
 		})
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -576,6 +577,27 @@ func normalizePluginConfig(channel *model.Channel, plugin *jsplugin.LoadedPlugin
 	return nil
 }
 
+// validateChannelGroups rejects a group list the database cannot store: each
+// name must fit the single-group columns (users.group, abilities.group) and the
+// joined list must fit channels.group.
+func validateChannelGroups(groupList string) error {
+	names := make([]string, 0, strings.Count(groupList, ",")+1)
+	for _, group := range strings.Split(groupList, ",") {
+		group = strings.TrimSpace(group)
+		if group == "" {
+			continue
+		}
+		if utf8.RuneCountInString(group) > model.MaxGroupNameLength {
+			return common.NewMessage("Channel group name is too long: {{group}}", map[string]any{"group": group})
+		}
+		names = append(names, group)
+	}
+	if utf8.RuneCountInString(strings.Join(names, ",")) > model.MaxChannelGroupsLength {
+		return common.NewMessage("Channel group list exceeds {{max}} characters", map[string]any{"max": model.MaxChannelGroupsLength})
+	}
+	return nil
+}
+
 // validateChannel 通用的渠道校验函数
 func validateChannel(channel *model.Channel, isAdd bool) error {
 	if channel == nil {
@@ -585,6 +607,11 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 	// 校验 channel settings
 	if err := channel.ValidateSettings(); err != nil {
 		return common.NewMessage("Invalid channel settings format: {{error}}", map[string]any{"error": err.Error()})
+	}
+	// The groups of a channel are stored as one comma-separated list, while each
+	// name also has to fit the columns that hold a single group.
+	if err := validateChannelGroups(channel.Group); err != nil {
+		return err
 	}
 	if channel.Type == constant.ChannelTypeTaskPlugin {
 		pluginKey := strings.TrimSpace(channel.GetSetting().TaskPluginKey)
@@ -1119,6 +1146,12 @@ func EditTagChannels(c *gin.Context) {
 	if channelTag.Tag == "" {
 		common.ApiErrorT(c, "Tag cannot be empty")
 		return
+	}
+	if channelTag.Groups != nil {
+		if err := validateChannelGroups(*channelTag.Groups); err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	}
 	if (channelTag.ParamOverride != nil || channelTag.HeaderOverride != nil) &&
 		!authz.Can(c.GetInt("id"), c.GetInt("role"), authz.ChannelSensitiveWrite) {

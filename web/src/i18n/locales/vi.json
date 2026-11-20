@@ -1178,6 +1178,8 @@
     "Channel does not exist": "Kênh không tồn tại",
     "Channel enabled successfully": "Kênh đã được bật thành công",
     "Channel error": "Lỗi kênh",
+    "Channel group list exceeds {{max}} characters": "Danh sách nhóm của kênh vượt quá {{max}} ký tự",
+    "Channel group name is too long: {{group}}": "Tên nhóm của kênh quá dài: {{group}}",
     "Channel Extra Settings": "Cài đặt thêm kênh",
     "Channel health": "Tình trạng kênh",
     "Channel health checks": "Kiểm tra tình trạng kênh",

@@ -1178,6 +1178,8 @@
     "Channel does not exist": "チャネルが存在しません",
     "Channel enabled successfully": "チャネルが正常に有効化されました",
     "Channel error": "チャネルエラー",
+    "Channel group list exceeds {{max}} characters": "チャネルのグループ一覧が {{max}} 文字を超えています",
+    "Channel group name is too long: {{group}}": "チャネルのグループ名が長すぎます：{{group}}",
     "Channel Extra Settings": "チャネル詳細設定",
     "Channel health": "チャネルの健全性",
     "Channel health checks": "チャネルヘルスチェック",

@@ -42,7 +42,7 @@ type Channel struct {
 	Balance            float64 `json:"balance"` // in USD
 	BalanceUpdatedTime int64   `json:"balance_updated_time" gorm:"bigint"`
 	Models             string  `json:"models"`
-	Group              string  `json:"group" gorm:"type:varchar(64);default:'default'"`
+	Group              string  `json:"group" gorm:"type:varchar(4096);default:'default'"` // comma-separated list of the groups this channel serves
 	UsedQuota          int64   `json:"used_quota" gorm:"bigint;default:0"`
 	ModelMapping       *string `json:"model_mapping" gorm:"type:text"`
 	//MaxInputTokens     *int    `json:"max_input_tokens" gorm:"default:0"`
@@ -312,6 +312,15 @@ func (channel *Channel) GetModels() []string {
 	}
 	return strings.Split(strings.Trim(channel.Models, ","), ",")
 }
+
+const (
+	// MaxGroupNameLength matches the single-group columns (users.group and
+	// abilities.group), which are varchar(64): a longer name cannot be stored.
+	MaxGroupNameLength = 64
+	// MaxChannelGroupsLength matches channels.group, which stores the
+	// comma-separated list of the groups a channel serves.
+	MaxChannelGroupsLength = 4096
+)
 
 func (channel *Channel) GetGroups() []string {
 	if channel.Group == "" {

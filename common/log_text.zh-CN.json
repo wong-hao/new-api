@@ -195,6 +195,7 @@
   "Stripe webhook signature verified event_type=%s client_ip=%s path=%q": "Stripe webhook 验签成功 event_type=%s client_ip=%s path=%q",
   "Successfully migrated %s.%s to decimal(10,6)": "字段 %s.%s 的类型已改为 decimal(10,6)",
   "Successfully migrated %s.%s to text": "字段 %s.%s 的类型已改为 text",
+  "Successfully migrated %s.%s to varchar(%d)": "字段 %s.%s 的类型已加宽为 varchar(%d)",
   "Task %s CAS lost or no-op update, skip billing": "任务 %s 的状态已由其他进程更新或没有变化，跳过计费",
   "Task %s failed": "任务 %s 失败",
   "Task %s failed: %s": "任务 %s 失败: %s",

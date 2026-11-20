@@ -1178,6 +1178,8 @@
     "Channel does not exist": "渠道不存在",
     "Channel enabled successfully": "渠道啟用成功",
     "Channel error": "通道錯誤",
+    "Channel group list exceeds {{max}} characters": "渠道分組列表超出 {{max}} 個字元",
+    "Channel group name is too long: {{group}}": "渠道分組名稱過長：{{group}}",
     "Channel Extra Settings": "渠道額外設定",
     "Channel health": "渠道健康",
     "Channel health checks": "渠道健康檢查",
